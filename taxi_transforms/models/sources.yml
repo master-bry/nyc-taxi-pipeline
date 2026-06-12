@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: main
+    database: /home/master/nyc-taxi-pipeline/data/taxi.duckdb
+    tables:
+      - name: raw_trips
+        description: "Cleaned NYC taxi trips loaded from parquet"
