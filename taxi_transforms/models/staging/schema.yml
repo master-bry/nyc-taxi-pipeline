@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: stg_trips
+    description: "Cleaned and renamed NYC taxi trips. One row per trip."
+    columns:
+      - name: pickup_at
+        description: "Trip pickup timestamp"
+        data_tests:
+          - not_null
+
+      - name: fare_amount
+        description: "Base fare in USD"
+        data_tests:
+          - not_null
+
+      - name: trip_distance
+        description: "Trip distance in miles"
+        data_tests:
+          - not_null
+
+      - name: passenger_count
+        description: "Number of passengers"
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6]
+
+      - name: payment_type
+        description: "1=Credit card, 2=Cash, 3=No charge, 4=Dispute"
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6]

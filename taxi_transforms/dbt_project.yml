@@ -29,9 +29,6 @@ clean-targets:         # directories to be removed by `dbt clean`
 # Configure model materialization for each directory
 models:
   taxi_transforms:
-    # Example models as views
-    example:
-      +materialized: view
     # Staging models as views (lightweight transformations)
     staging:
       +materialized: view

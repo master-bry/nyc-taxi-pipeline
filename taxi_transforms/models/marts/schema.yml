@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: mart_daily_summary
+    description: "Daily aggregation of trip metrics. One row per day."
+    columns:
+      - name: trip_date
+        description: "The calendar date"
+        data_tests:
+          - not_null
+          - unique
+
+      - name: total_trips
+        description: "Total number of trips on that day"
+        data_tests:
+          - not_null
+
+  - name: mart_hourly_patterns
+    description: "Hourly demand patterns aggregated across all days."
+    columns:
+      - name: pickup_hour
+        description: "Hour of day (0-23)"
+        data_tests:
+          - not_null
+          - unique
