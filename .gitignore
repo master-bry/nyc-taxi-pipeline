@@ -14,4 +14,5 @@ logs/
 *.log
 
 # MLflow
-mlruns/
+mlruns/!data/exports/
+!data/exports/*.csv

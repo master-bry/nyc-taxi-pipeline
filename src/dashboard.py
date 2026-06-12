@@ -1,51 +1,36 @@
 import streamlit as st
-import duckdb
 import pandas as pd
 import pickle
 import numpy as np
+import os
 
 st.set_page_config(
     page_title="NYC Taxi Analytics",
-    page_icon="🚕",
+    page_icon="taxi",
     layout="wide"
 )
 
-# Load data
-@st.cache_resource
-def load_db():
-    return duckdb.connect("data/taxi.duckdb", read_only=True)
+@st.cache_data
+def get_daily_summary():
+    return pd.read_csv("data/exports/mart_daily_summary.csv", parse_dates=["trip_date"])
+
+@st.cache_data
+def get_hourly_patterns():
+    return pd.read_csv("data/exports/mart_hourly_patterns.csv")
 
 @st.cache_resource
 def load_model():
     with open("src/ml/artifacts/best_model.pkl", "rb") as f:
         return pickle.load(f)
 
-@st.cache_data
-def get_daily_summary():
-    con = load_db()
-    return con.execute("""
-        SELECT * FROM mart_daily_summary ORDER BY trip_date
-    """).df()
-
-@st.cache_data
-def get_hourly_patterns():
-    con = load_db()
-    return con.execute("""
-        SELECT * FROM mart_hourly_patterns ORDER BY pickup_hour
-    """).df()
-
-con = load_db()
+daily = get_daily_summary()
+hourly = get_hourly_patterns()
 artifact = load_model()
 model = artifact["model"]
 le = artifact["label_encoder"]
 
-# Header
 st.title("NYC Taxi Analytics Pipeline")
 st.caption("End-to-end data engineering project — 8.7M trips, Q1 2023")
-
-# Top metrics
-daily = get_daily_summary()
-hourly = get_hourly_patterns()
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Trips", f"{daily['total_trips'].sum():,.0f}")
@@ -55,7 +40,6 @@ col4.metric("Avg Tip", f"{daily['avg_tip_pct'].mean():.1f}%")
 
 st.divider()
 
-# Charts
 col_left, col_right = st.columns(2)
 
 with col_left:
@@ -78,7 +62,6 @@ with col_right2:
 
 st.divider()
 
-# Fare Predictor
 st.subheader("Fare Predictor")
 st.caption("GradientBoosting model — MAE $0.94, R2 = 0.969")
 
@@ -112,7 +95,6 @@ if st.button("Predict Fare", type="primary"):
 
 st.divider()
 
-# Pipeline summary
 st.subheader("Pipeline Architecture")
 st.code("""
 Raw Parquet (NYC TLC)
