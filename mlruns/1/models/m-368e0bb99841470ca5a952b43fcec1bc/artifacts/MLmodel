@@ -1,0 +1,23 @@
+artifact_path: /home/master/nyc-taxi-pipeline/mlruns/1/models/m-368e0bb99841470ca5a952b43fcec1bc/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.13.7
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.9.0
+    skops_trusted_types: null
+mlflow_version: 3.13.0
+model_id: m-368e0bb99841470ca5a952b43fcec1bc
+model_size_bytes: 453715
+model_uuid: m-368e0bb99841470ca5a952b43fcec1bc
+prompts: null
+run_id: 2694419078274d219cc14612de576e4e
+utc_time_created: '2026-06-12 20:24:53.966939'
