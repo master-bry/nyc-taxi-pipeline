@@ -2,7 +2,48 @@ version: 2
 
 sources:
   - name: main
-    database: /home/master/nyc-taxi-pipeline/data/taxi.duckdb
+    description: "NYC taxi data warehouse"
     tables:
       - name: raw_trips
         description: "Cleaned NYC taxi trips loaded from parquet"
+        columns:
+          - name: vendor_id
+            description: "Vendor ID"
+          - name: pickup_at
+            description: "Pickup datetime"
+          - name: dropoff_at
+            description: "Dropoff datetime"
+          - name: passenger_count
+            description: "Number of passengers"
+          - name: trip_distance
+            description: "Trip distance in miles"
+          - name: pickup_location_id
+            description: "Pickup location ID"
+          - name: dropoff_location_id
+            description: "Dropoff location ID"
+          - name: payment_type
+            description: "Payment method"
+          - name: fare_amount
+            description: "Fare amount in dollars"
+          - name: tip_amount
+            description: "Tip amount in dollars"
+          - name: tolls_amount
+            description: "Tolls in dollars"
+          - name: total_amount
+            description: "Total fare including all charges"
+          - name: congestion_surcharge
+            description: "Congestion surcharge"
+          - name: pickup_hour
+            description: "Hour of day for pickup (0-23)"
+          - name: pickup_dow
+            description: "Day of week for pickup (0=Sunday)"
+          - name: pickup_month
+            description: "Month of pickup"
+          - name: trip_duration_min
+            description: "Trip duration in minutes"
+          - name: avg_speed_mph
+            description: "Average speed in miles per hour"
+          - name: tip_pct
+            description: "Tip as percentage of fare"
+          - name: time_of_day
+            description: "Period classification (morning_rush, evening_rush, off_peak)"
