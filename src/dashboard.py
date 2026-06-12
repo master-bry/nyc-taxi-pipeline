@@ -12,11 +12,11 @@ st.set_page_config(
 
 @st.cache_data
 def get_daily_summary():
-    return pd.read_csv("data/exports/mart_daily_summary.csv", parse_dates=["trip_date"])
+    return pd.read_csv("exports/mart_daily_summary.csv", parse_dates=["trip_date"])
 
 @st.cache_data
 def get_hourly_patterns():
-    return pd.read_csv("data/exports/mart_hourly_patterns.csv")
+    return pd.read_csv("exports/mart_hourly_patterns.csv")
 
 @st.cache_resource
 def load_model():
