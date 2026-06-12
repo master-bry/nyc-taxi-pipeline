@@ -1,0 +1,17 @@
+# Data files (kubwa mno kwa GitHub)
+data/
+*.parquet
+*.csv
+
+# Environment
+.env
+__pycache__/
+*.pyc
+.venv/
+
+# Logs
+logs/
+*.log
+
+# MLflow
+mlruns/
