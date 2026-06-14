@@ -223,8 +223,8 @@ THEME = {
         "font_color": "#f1f5f9",
         "bordercolor": "rgba(255,255,255,0.1)",
     },
-    "margin": {"l": 0, "r": 0, "t": 45, "b": 0},
-    "title": {"automargin": True, "font": {"size": 13}},
+    "margin": {"l": 0, "r": 0, "t": 65, "b": 10},
+    "title": {"automargin": True, "font": {"size": 13}, "y": 0.98},
 }
 
 def apply_theme(fig):
