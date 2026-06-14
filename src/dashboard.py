@@ -228,23 +228,53 @@ COLORS = {
 }
 
 # ──────────────────────────────────────────────
+# DATA SOURCE DETECTION
+# ──────────────────────────────────────────────
+@st.cache_data
+def check_data_available():
+    db_ok = os.path.exists("data/taxi.duckdb")
+    parquet_ok = os.path.exists("data/processed/trips_cleaned.parquet")
+    csv_daily_ok = os.path.exists("exports/mart_daily_summary.csv")
+    csv_hourly_ok = os.path.exists("exports/mart_hourly_patterns.csv")
+    model_ok = os.path.exists("src/ml/artifacts/best_model.pkl")
+    return {
+        "duckdb": db_ok,
+        "parquet": parquet_ok,
+        "csv_daily": csv_daily_ok,
+        "csv_hourly": csv_hourly_ok,
+        "model": model_ok,
+        "has_raw": db_ok or parquet_ok,
+    }
+
+data_src = check_data_available()
+
+# ──────────────────────────────────────────────
 # DUCKDB CONNECTION
 # ──────────────────────────────────────────────
 @st.cache_resource
 def get_duckdb():
-    db_path = "data/taxi.duckdb"
-    if os.path.exists(db_path):
-        return duckdb.connect(db_path, read_only=True)
-    return duckdb.connect()
+    if data_src["duckdb"]:
+        return duckdb.connect("data/taxi.duckdb", read_only=True)
+    if data_src["parquet"]:
+        return duckdb.connect()
+    return None
 
 def query(q):
-    return get_duckdb().execute(q).df()
+    con = get_duckdb()
+    if con is None:
+        return None
+    try:
+        return con.execute(q).df()
+    except Exception:
+        return None
 
 # ──────────────────────────────────────────────
 # DATA LOADING
 # ──────────────────────────────────────────────
 @st.cache_data
 def get_daily_summary():
+    if not data_src["csv_daily"]:
+        return pd.DataFrame()
     df = pd.read_csv("exports/mart_daily_summary.csv", parse_dates=["trip_date"])
     df["month"] = df["trip_date"].dt.month_name()
     df["dow_name"] = df["trip_date"].dt.day_name()
@@ -254,21 +284,22 @@ def get_daily_summary():
 
 @st.cache_data
 def get_hourly_patterns():
+    if not data_src["csv_hourly"]:
+        return pd.DataFrame()
     return pd.read_csv("exports/mart_hourly_patterns.csv")
 
 @st.cache_data
 def get_heatmap_data():
-    df = query("""
+    return query("""
         SELECT pickup_dow, pickup_hour, COUNT(*) AS trips
         FROM read_parquet('data/processed/trips_cleaned.parquet')
         GROUP BY pickup_dow, pickup_hour
         ORDER BY pickup_dow, pickup_hour
     """)
-    return df
 
 @st.cache_data
 def get_scatter_sample():
-    df = query("""
+    return query("""
         SELECT fare_amount, trip_distance, tip_amount, time_of_day,
                pickup_hour, pickup_dow, pickup_month
         FROM read_parquet('data/processed/trips_cleaned.parquet')
@@ -276,11 +307,10 @@ def get_scatter_sample():
           AND trip_distance BETWEEN 0.1 AND 40
         LIMIT 80000
     """)
-    return df
 
 @st.cache_data
 def get_location_data():
-    df = query("""
+    return query("""
         SELECT PULocationID, DOLocationID, COUNT(*) AS trips,
                ROUND(AVG(fare_amount), 2) AS avg_fare,
                ROUND(AVG(trip_distance), 2) AS avg_distance
@@ -288,11 +318,10 @@ def get_location_data():
         GROUP BY PULocationID, DOLocationID
         ORDER BY trips DESC
     """)
-    return df
 
 @st.cache_data
 def get_payment_dist():
-    df = query("""
+    return query("""
         SELECT payment_type,
                CASE payment_type
                    WHEN 1 THEN 'Credit Card'
@@ -312,7 +341,6 @@ def get_payment_dist():
         GROUP BY payment_type
         ORDER BY payment_type
     """)
-    return df
 
 @st.cache_data
 def get_metrics_summary():
@@ -329,12 +357,14 @@ def get_metrics_summary():
             ROUND(SUM(congestion_surcharge), 2) AS total_congestion,
             ROUND(SUM(tolls_amount), 2) AS total_tolls
         FROM read_parquet('data/processed/trips_cleaned.parquet')
-    """).iloc[0].to_dict()
-    return df
+    """)
+    if df is not None and len(df) > 0:
+        return df.iloc[0].to_dict()
+    return None
 
 @st.cache_data
 def get_rush_hour_breakdown():
-    df = query("""
+    return query("""
         SELECT
             time_of_day,
             COUNT(*) AS trips,
@@ -345,7 +375,6 @@ def get_rush_hour_breakdown():
         GROUP BY time_of_day
         ORDER BY trips DESC
     """)
-    return df
 
 @st.cache_data
 def get_dow_breakdown():
@@ -361,9 +390,10 @@ def get_dow_breakdown():
         GROUP BY pickup_dow
         ORDER BY pickup_dow
     """)
-    df["day"] = df["pickup_dow"].map({
-        0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"
-    })
+    if df is not None:
+        df["day"] = df["pickup_dow"].map({
+            0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"
+        })
     return df
 
 @st.cache_data
@@ -379,11 +409,14 @@ def get_monthly_breakdown():
         GROUP BY pickup_month
         ORDER BY pickup_month
     """)
-    df["month_name"] = df["pickup_month"].map({1: "Jan", 2: "Feb", 3: "Mar"})
+    if df is not None:
+        df["month_name"] = df["pickup_month"].map({1: "Jan", 2: "Feb", 3: "Mar"})
     return df
 
 @st.cache_resource
 def load_model():
+    if not data_src["model"]:
+        return None
     with open("src/ml/artifacts/best_model.pkl", "rb") as f:
         return pickle.load(f)
 
@@ -402,8 +435,8 @@ with st.spinner("Loading pipeline data..."):
     dow_data = get_dow_breakdown()
     monthly_data = get_monthly_breakdown()
     artifact = load_model()
-    model = artifact["model"]
-    le = artifact["label_encoder"]
+    model = artifact["model"] if artifact else None
+    le = artifact["label_encoder"] if artifact else None
 
 # ──────────────────────────────────────────────
 # SIDEBAR
@@ -422,7 +455,7 @@ with st.sidebar:
 
     st.divider()
 
-    months = daily["month"].unique().tolist()
+    months = daily["month"].unique().tolist() if not daily.empty else []
     selected_months = st.multiselect("Month", months, default=months)
 
     day_types = ["Weekday", "Weekend"]
@@ -431,7 +464,7 @@ with st.sidebar:
     filtered = daily[
         daily["month"].isin(selected_months)
         & daily["is_weekend"].isin([dt == "Weekend" for dt in selected_day_types])
-    ]
+    ] if not daily.empty else daily
 
     st.divider()
 
@@ -442,9 +475,12 @@ with st.sidebar:
                       margin:0 0 0.75rem 0;">Pipeline Metadata</p>
     """, unsafe_allow_html=True)
 
-    st.markdown(f"**Total Trips:** {metrics['total_trips']:,.0f}")
+    if metrics:
+        st.markdown(f"**Total Trips:** {metrics['total_trips']:,.0f}")
+        st.markdown(f"**Avg Fare:** ${metrics['avg_fare']:.2f}")
+    else:
+        st.markdown(f"**Total Trips:** {daily['total_trips'].sum():,.0f}" if not daily.empty else "**Total Trips:** N/A")
     st.markdown(f"**Period:** Jan 1 – Mar 31, 2023")
-    st.markdown(f"**Avg Fare:** ${metrics['avg_fare']:.2f}")
     st.markdown(f"**Model:** GradientBoosting · R² = 0.969")
     st.markdown(f"**MAE:** $0.94")
 
@@ -481,24 +517,29 @@ st.markdown("""
 # ──────────────────────────────────────────────
 # KPI ROW — Styled Metric Cards
 # ──────────────────────────────────────────────
-total_trips_f = filtered["total_trips"].sum()
-total_revenue_f = filtered["total_revenue"].sum()
-avg_fare_f = filtered["avg_fare"].mean()
-avg_tip_f = filtered["avg_tip_pct"].mean()
+total_trips_f = filtered["total_trips"].sum() if not filtered.empty else 0
+total_revenue_f = filtered["total_revenue"].sum() if not filtered.empty else 0
+avg_fare_f = filtered["avg_fare"].mean() if not filtered.empty else 0
+avg_tip_f = filtered["avg_tip_pct"].mean() if not filtered.empty else 0
+
+total_metric = f"{metrics['total_trips']:,.0f} total" if metrics else f"{total_trips_f:,.0f}"
+revenue_metric = f"${metrics['total_revenue']:,.0f} total" if metrics else f"${total_revenue_f:,.0f}"
+fare_metric = f"${metrics['avg_fare']:.2f} overall" if metrics else f"${avg_fare_f:.2f}"
+tip_metric = f"{metrics['avg_tip_pct']:.1f}% overall" if metrics else f"{avg_tip_f:.1f}%"
 
 k1, k2, k3, k4, k5 = st.columns(5)
 
 with k1:
-    st.metric("Total Trips", f"{total_trips_f:,.0f}", f"{metrics['total_trips']:,.0f} total")
+    st.metric("Total Trips", f"{total_trips_f:,.0f}", total_metric)
 
 with k2:
-    st.metric("Total Revenue", f"${total_revenue_f:,.0f}", f"${metrics['total_revenue']:,.0f} total")
+    st.metric("Total Revenue", f"${total_revenue_f:,.0f}", revenue_metric)
 
 with k3:
-    st.metric("Avg Fare", f"${avg_fare_f:.2f}", f"${metrics['avg_fare']:.2f} overall")
+    st.metric("Avg Fare", f"${avg_fare_f:.2f}", fare_metric)
 
 with k4:
-    st.metric("Avg Tip Rate", f"{avg_tip_f:.1f}%", f"{metrics['avg_tip_pct']:.1f}% overall")
+    st.metric("Avg Tip Rate", f"{avg_tip_f:.1f}%", tip_metric)
 
 with k5:
     st.metric("Active Days", f"{len(filtered)}", f"90 in Q1")
@@ -599,224 +640,294 @@ with t1:
 
     row2 = st.columns(4)
 
-    rush_ordered = ["morning_rush", "evening_rush", "off_peak"]
     rush_colors = {"morning_rush": COLORS["amber"], "evening_rush": COLORS["purple"], "off_peak": COLORS["cyan"]}
     rush_labels = {"morning_rush": "🌅 Morning Rush", "evening_rush": "🌆 Evening Rush", "off_peak": "🌙 Off-Peak"}
-    rush_hour["label"] = rush_hour["time_of_day"].map(rush_labels)
+
+    has_rush = rush_hour is not None and not rush_hour.empty
+    has_payment = payment_dist is not None and not payment_dist.empty
+
+    if has_rush:
+        rush_hour["label"] = rush_hour["time_of_day"].map(rush_labels)
 
     with row2[0]:
-        fig = px.bar(
-            rush_hour, x="label", y="trips", color="time_of_day",
-            color_discrete_map=rush_colors,
-            text_auto=",.0f",
-            title="Trips by Time of Day",
-        )
-        fig.update_traces(showlegend=False)
+        if has_rush:
+            fig = px.bar(
+                rush_hour, x="label", y="trips", color="time_of_day",
+                color_discrete_map=rush_colors,
+                text_auto=",.0f",
+                title="Trips by Time of Day",
+            )
+            fig.update_traces(showlegend=False)
+        else:
+            fig = go.Figure()
+            fig.add_annotation(text="Raw data not available<br>Load DuckDB or Parquet", showarrow=False, font=dict(size=14, color="#64748b"))
         fig.update_layout(height=300, xaxis_title="", yaxis_title="Trips")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row2[1]:
-        fig = px.bar(
-            rush_hour, x="label", y="avg_fare", color="time_of_day",
-            color_discrete_map=rush_colors,
-            text_auto=".2f",
-            title="Avg Fare by Time of Day",
-        )
-        fig.update_traces(showlegend=False)
+        if has_rush:
+            fig = px.bar(
+                rush_hour, x="label", y="avg_fare", color="time_of_day",
+                color_discrete_map=rush_colors,
+                text_auto=".2f",
+                title="Avg Fare by Time of Day",
+            )
+            fig.update_traces(showlegend=False)
+        else:
+            fig = go.Figure()
+            fig.add_annotation(text="Data not available", showarrow=False, font=dict(size=14, color="#64748b"))
         fig.update_layout(height=300, xaxis_title="", yaxis_title="Avg Fare ($)")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row2[2]:
-        fig = px.bar(
-            rush_hour, x="label", y="avg_tip", color="time_of_day",
-            color_discrete_map=rush_colors,
-            text_auto=".2f",
-            title="Avg Tip by Time of Day",
-        )
-        fig.update_traces(showlegend=False)
+        if has_rush:
+            fig = px.bar(
+                rush_hour, x="label", y="avg_tip", color="time_of_day",
+                color_discrete_map=rush_colors,
+                text_auto=".2f",
+                title="Avg Tip by Time of Day",
+            )
+            fig.update_traces(showlegend=False)
+        else:
+            fig = go.Figure()
+            fig.add_annotation(text="Data not available", showarrow=False, font=dict(size=14, color="#64748b"))
         fig.update_layout(height=300, xaxis_title="", yaxis_title="Avg Tip ($)")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row2[3]:
-        payment_dist["label"] = payment_dist["payment_desc"] + " (" + payment_dist["pct"].astype(str) + "%)"
-        fig = px.pie(
-            payment_dist, values="trips", names="payment_desc",
-            title="Payment Type Split",
-            color="payment_desc",
-            color_discrete_map={
-                "Credit Card": COLORS["cyan"],
-                "Cash": COLORS["amber"],
-            },
-            hole=0.5,
-        )
-        fig.update_traces(textposition="outside", textinfo="percent")
+        if has_payment:
+            fig = px.pie(
+                payment_dist, values="trips", names="payment_desc",
+                title="Payment Type Split",
+                color="payment_desc",
+                color_discrete_map={
+                    "Credit Card": COLORS["cyan"],
+                    "Cash": COLORS["amber"],
+                },
+                hole=0.5,
+            )
+            fig.update_traces(textposition="outside", textinfo="percent")
+        else:
+            fig = go.Figure()
+            fig.add_annotation(text="Data not available", showarrow=False, font=dict(size=14, color="#64748b"))
         fig.update_layout(height=300, showlegend=False)
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     st.divider()
 
+    insight_trips = f"{metrics['total_trips']:,.0f}" if metrics else f"{daily['total_trips'].sum():,.0f}"
+    insight_fare = f"${metrics['avg_fare']}" if metrics else f"${avg_fare_f:.2f}"
+    insight_card_pct = f"{payment_dist[payment_dist['payment_type'] == 1]['pct'].values[0]:.1f}" if has_payment else "majority"
+
     st.markdown("""
         <div class="insight-box">
             <p><strong style="color:#00d4ff;">Key Insight:</strong>
-            The pipeline processes <strong>8.8M trips</strong> with an average fare of
-            <strong>${}</strong>. Credit card payments dominate at
+            The pipeline processes <strong>{}</strong> trips with an average fare of
+            <strong>{}</strong>. Credit card payments dominate at
             <strong>{}%</strong>. Evening rush hour sees the highest fares, while
             morning rush has the highest trip volume relative to off-peak hours.</p>
         </div>
-    """.format(
-        metrics["avg_fare"],
-        payment_dist[payment_dist["payment_type"] == 1]["pct"].values[0],
-    ), unsafe_allow_html=True)
+    """.format(insight_trips, insight_fare, insight_card_pct), unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════
 # TAB 2: TIME & PATTERNS
 # ═══════════════════════════════════════════════
 with t2:
-    st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Hour × Day of Week Heatmap</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#64748b; margin-top:-0.25rem;'>Trip density: darker = higher volume</p>", unsafe_allow_html=True)
+    has_heatmap = heatmap_data is not None and not heatmap_data.empty
+    has_scatter = scatter_sample is not None and not scatter_sample.empty
+    has_dow = dow_data is not None and not dow_data.empty
+    has_monthly = monthly_data is not None and not monthly_data.empty
+    has_raw = data_src["has_raw"]
 
-    dow_labels = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
-    pivot = heatmap_data.pivot_table(
-        values="trips", index="pickup_hour", columns="pickup_dow", aggfunc="sum"
-    )
-    pivot.columns = [dow_labels[c] for c in pivot.columns]
-    pivot = pivot[["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]]
+    if has_heatmap:
+        st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Hour × Day of Week Heatmap</h3>", unsafe_allow_html=True)
+        st.markdown("<p style='color:#64748b; margin-top:-0.25rem;'>Trip density: darker = higher volume</p>", unsafe_allow_html=True)
 
-    fig = go.Figure(data=go.Heatmap(
-        z=pivot.values,
-        x=pivot.columns,
-        y=pivot.index,
-        colorscale=[
-            [0, "#0a0a1a"],
-            [0.25, "#1a1a3e"],
-            [0.5, "#00d4ff"],
-            [0.75, "#7c3aed"],
-            [1, "#f59e0b"],
-        ],
-        hovertemplate="Day: %{x}<br>Hour: %{y}:00<br>Trips: %{z:,.0f}<extra></extra>",
-    ))
-    fig.update_layout(height=450, xaxis_title="", yaxis_title="Hour of Day")
-    fig.update_yaxes(dtick=2, autorange="reversed")
-    st.plotly_chart(apply_theme(fig), use_container_width=True)
+        dow_labels = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
+        pivot = heatmap_data.pivot_table(
+            values="trips", index="pickup_hour", columns="pickup_dow", aggfunc="sum"
+        )
+        pivot.columns = [dow_labels[c] for c in pivot.columns]
+        pivot = pivot[["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]]
+
+        fig = go.Figure(data=go.Heatmap(
+            z=pivot.values,
+            x=pivot.columns,
+            y=pivot.index,
+            colorscale=[
+                [0, "#0a0a1a"],
+                [0.25, "#1a1a3e"],
+                [0.5, "#00d4ff"],
+                [0.75, "#7c3aed"],
+                [1, "#f59e0b"],
+            ],
+            hovertemplate="Day: %{x}<br>Hour: %{y}:00<br>Trips: %{z:,.0f}<extra></extra>",
+        ))
+        fig.update_layout(height=450, xaxis_title="", yaxis_title="Hour of Day")
+        fig.update_yaxes(dtick=2, autorange="reversed")
+        st.plotly_chart(apply_theme(fig), use_container_width=True)
+    else:
+        st.info("Hour × Day heatmap requires the cleaned Parquet dataset. Only CSV exports are available in this environment.")
 
     st.divider()
 
     row_t1 = st.columns(2)
 
     with row_t1[0]:
-        st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>3D Trip Analysis</h3>", unsafe_allow_html=True)
-
-        fig = px.scatter_3d(
-            scatter_sample.sample(min(30000, len(scatter_sample)), random_state=42),
-            x="trip_distance", y="fare_amount", z="tip_amount",
-            color="time_of_day",
-            color_discrete_map=rush_colors,
-            opacity=0.4,
-            size_max=2,
-            labels={
-                "trip_distance": "Distance (mi)",
-                "fare_amount": "Fare ($)",
-                "tip_amount": "Tip ($)",
-                "time_of_day": "Time of Day",
-            },
-        )
-        fig.update_traces(marker=dict(size=1.5))
-        fig.update_layout(
-            height=450,
-            scene=dict(
-                xaxis=dict(gridcolor="rgba(255,255,255,0.06)", backgroundcolor="rgba(0,0,0,0)"),
-                yaxis=dict(gridcolor="rgba(255,255,255,0.06)", backgroundcolor="rgba(0,0,0,0)"),
-                zaxis=dict(gridcolor="rgba(255,255,255,0.06)", backgroundcolor="rgba(0,0,0,0)"),
-                camera=dict(eye=dict(x=1.5, y=1.5, z=0.8)),
-            ),
-            legend=dict(orientation="h", y=1.02, x=0.3),
-        )
-        st.plotly_chart(apply_theme(fig), use_container_width=True)
+        if has_scatter:
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>3D Trip Analysis</h3>", unsafe_allow_html=True)
+            fig = px.scatter_3d(
+                scatter_sample.sample(min(30000, len(scatter_sample)), random_state=42),
+                x="trip_distance", y="fare_amount", z="tip_amount",
+                color="time_of_day",
+                color_discrete_map=rush_colors,
+                opacity=0.4,
+                size_max=2,
+                labels={
+                    "trip_distance": "Distance (mi)",
+                    "fare_amount": "Fare ($)",
+                    "tip_amount": "Tip ($)",
+                    "time_of_day": "Time of Day",
+                },
+            )
+            fig.update_traces(marker=dict(size=1.5))
+            fig.update_layout(
+                height=450,
+                scene=dict(
+                    xaxis=dict(gridcolor="rgba(255,255,255,0.06)", backgroundcolor="rgba(0,0,0,0)"),
+                    yaxis=dict(gridcolor="rgba(255,255,255,0.06)", backgroundcolor="rgba(0,0,0,0)"),
+                    zaxis=dict(gridcolor="rgba(255,255,255,0.06)", backgroundcolor="rgba(0,0,0,0)"),
+                    camera=dict(eye=dict(x=1.5, y=1.5, z=0.8)),
+                ),
+                legend=dict(orientation="h", y=1.02, x=0.3),
+            )
+            st.plotly_chart(apply_theme(fig), use_container_width=True)
+        else:
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Daily Trip Trend</h3>", unsafe_allow_html=True)
+            fig = px.line(
+                filtered, x="trip_date", y="total_trips",
+                labels={"trip_date": "", "total_trips": "Trips"},
+            )
+            fig.update_traces(line=dict(color=COLORS["cyan"], width=2.5))
+            fig.update_layout(height=450, hovermode="x unified")
+            st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row_t1[1]:
-        st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Day of Week — Multi-Metric Radar</h3>", unsafe_allow_html=True)
-        dow_norm = dow_data.copy()
-        for col in ["trips", "avg_fare", "avg_tip", "avg_distance", "avg_duration"]:
-            mx = dow_norm[col].max()
-            dow_norm[col + "_norm"] = dow_norm[col] / mx if mx > 0 else 0
+        if has_dow:
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Day of Week — Multi-Metric Radar</h3>", unsafe_allow_html=True)
+            dow_norm = dow_data.copy()
+            for col in ["trips", "avg_fare", "avg_tip", "avg_distance", "avg_duration"]:
+                mx = dow_norm[col].max()
+                dow_norm[col + "_norm"] = dow_norm[col] / mx if mx > 0 else 0
 
-        fig = go.Figure()
-        metrics_radar = [
-            ("trips_norm", "Trips", COLORS["cyan"]),
-            ("avg_fare_norm", "Fare", COLORS["amber"]),
-            ("avg_tip_norm", "Tip", COLORS["green"]),
-            ("avg_distance_norm", "Distance", COLORS["purple"]),
-            ("avg_duration_norm", "Duration", COLORS["pink"]),
-        ]
-        for col, name, color in metrics_radar:
-            fig.add_trace(go.Scatterpolar(
-                r=dow_norm[col].tolist() + [dow_norm[col].iloc[0]],
-                theta=dow_norm["day"].tolist() + [dow_norm["day"].iloc[0]],
-                name=name,
-                line=dict(color=color, width=2),
-                fill="toself",
-                opacity=0.3,
-            ))
-        fig.update_layout(
-            height=450,
-            polar=dict(
-                bgcolor="rgba(0,0,0,0)",
-                radialaxis=dict(visible=True, gridcolor="rgba(255,255,255,0.06)", showticklabels=False),
-                angularaxis=dict(gridcolor="rgba(255,255,255,0.06)", color="#94a3b8"),
-            ),
-            legend=dict(orientation="h", y=1.08, x=0.25),
-        )
-        st.plotly_chart(apply_theme(fig), use_container_width=True)
+            fig = go.Figure()
+            radar_metrics = [
+                ("trips_norm", "Trips", COLORS["cyan"]),
+                ("avg_fare_norm", "Fare", COLORS["amber"]),
+                ("avg_tip_norm", "Tip", COLORS["green"]),
+                ("avg_distance_norm", "Distance", COLORS["purple"]),
+                ("avg_duration_norm", "Duration", COLORS["pink"]),
+            ]
+            for col, name, color in radar_metrics:
+                fig.add_trace(go.Scatterpolar(
+                    r=dow_norm[col].tolist() + [dow_norm[col].iloc[0]],
+                    theta=dow_norm["day"].tolist() + [dow_norm["day"].iloc[0]],
+                    name=name,
+                    line=dict(color=color, width=2),
+                    fill="toself",
+                    opacity=0.3,
+                ))
+            fig.update_layout(
+                height=450,
+                polar=dict(
+                    bgcolor="rgba(0,0,0,0)",
+                    radialaxis=dict(visible=True, gridcolor="rgba(255,255,255,0.06)", showticklabels=False),
+                    angularaxis=dict(gridcolor="rgba(255,255,255,0.06)", color="#94a3b8"),
+                ),
+                legend=dict(orientation="h", y=1.08, x=0.25),
+            )
+            st.plotly_chart(apply_theme(fig), use_container_width=True)
+        else:
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Daily Fare Trend</h3>", unsafe_allow_html=True)
+            fig = px.line(
+                filtered, x="trip_date", y="avg_fare",
+                labels={"trip_date": "", "avg_fare": "Avg Fare ($)"},
+            )
+            fig.update_traces(line=dict(color=COLORS["amber"], width=2.5))
+            fig.update_layout(height=450, hovermode="x unified")
+            st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     st.divider()
 
     row_t2 = st.columns(2)
 
     with row_t2[0]:
-        st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Hourly Trip Profile by Month</h3>", unsafe_allow_html=True)
-        monthly_hourly = query("""
-            SELECT pickup_month, pickup_hour, COUNT(*) AS trips
-            FROM read_parquet('data/processed/trips_cleaned.parquet')
-            GROUP BY pickup_month, pickup_hour
-            ORDER BY pickup_month, pickup_hour
-        """)
-        fig = px.line(
-            monthly_hourly, x="pickup_hour", y="trips", color="pickup_month",
-            color_discrete_map={1: COLORS["cyan"], 2: COLORS["purple"], 3: COLORS["amber"]},
-            labels={"pickup_hour": "Hour", "trips": "Trips", "pickup_month": "Month"},
-            line_shape="spline",
-        )
-        fig.update_traces(line=dict(width=3))
-        fig.update_layout(height=350, hovermode="x unified")
-        fig.update_xaxes(dtick=2)
-        st.plotly_chart(apply_theme(fig), use_container_width=True)
+        if has_raw:
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Hourly Trip Profile by Month</h3>", unsafe_allow_html=True)
+            monthly_hourly = query("""
+                SELECT pickup_month, pickup_hour, COUNT(*) AS trips
+                FROM read_parquet('data/processed/trips_cleaned.parquet')
+                GROUP BY pickup_month, pickup_hour
+                ORDER BY pickup_month, pickup_hour
+            """)
+            if monthly_hourly is not None and not monthly_hourly.empty:
+                fig = px.line(
+                    monthly_hourly, x="pickup_hour", y="trips", color="pickup_month",
+                    color_discrete_map={1: COLORS["cyan"], 2: COLORS["purple"], 3: COLORS["amber"]},
+                    labels={"pickup_hour": "Hour", "trips": "Trips", "pickup_month": "Month"},
+                    line_shape="spline",
+                )
+                fig.update_traces(line=dict(width=3))
+                fig.update_layout(height=350, hovermode="x unified")
+                fig.update_xaxes(dtick=2)
+                st.plotly_chart(apply_theme(fig), use_container_width=True)
+        else:
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Hourly Trip Profile</h3>", unsafe_allow_html=True)
+            if not hourly.empty:
+                fig = px.bar(
+                    hourly, x="pickup_hour", y="total_trips",
+                    color="time_of_day", color_discrete_map=rush_colors,
+                    labels={"pickup_hour": "Hour", "total_trips": "Trips"},
+                )
+                fig.update_layout(height=350, showlegend=False)
+                fig.update_xaxes(dtick=2)
+                st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row_t2[1]:
-        st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Monthly Metric Comparison</h3>", unsafe_allow_html=True)
-        fig = go.Figure()
-        metrics_month = ["avg_fare", "avg_distance", "avg_tip", "avg_duration"]
-        colors_m = [COLORS["cyan"], COLORS["amber"], COLORS["green"], COLORS["pink"]]
-        names_m = ["Avg Fare ($)", "Avg Distance (mi)", "Avg Tip ($)", "Avg Duration (min)"]
+        if has_monthly:
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Monthly Metric Comparison</h3>", unsafe_allow_html=True)
+            fig = go.Figure()
+            month_metrics = ["avg_fare", "avg_distance", "avg_tip", "avg_duration"]
+            colors_m = [COLORS["cyan"], COLORS["amber"], COLORS["green"], COLORS["pink"]]
+            names_m = ["Avg Fare ($)", "Avg Distance (mi)", "Avg Tip ($)", "Avg Duration (min)"]
 
-        for i, (m, c, n) in enumerate(zip(metrics_month, colors_m, names_m)):
-            norm = monthly_data[m]
-            norm_norm = norm / norm.max() if norm.max() > 0 else norm
-            fig.add_trace(go.Bar(
-                name=n,
-                x=monthly_data["month_name"],
-                y=norm_norm,
-                marker_color=c,
-                opacity=0.8,
-                hovertemplate="%{x}<br>%{data.name}: %{customdata}<extra></extra>",
-                customdata=[[round(v, 2)] for v in monthly_data[m]],
-            ))
-        fig.update_layout(
-            barmode="group",
-            height=350,
-            legend=dict(orientation="h", y=1.08, x=0.15),
-            yaxis_title="Normalized Value (0–1)",
-        )
-        st.plotly_chart(apply_theme(fig), use_container_width=True)
+            for i, (m, c, n) in enumerate(zip(month_metrics, colors_m, names_m)):
+                norm = monthly_data[m]
+                norm_norm = norm / norm.max() if norm.max() > 0 else norm
+                fig.add_trace(go.Bar(
+                    name=n,
+                    x=monthly_data["month_name"],
+                    y=norm_norm,
+                    marker_color=c,
+                    opacity=0.8,
+                    hovertemplate="%{x}<br>%{data.name}: %{customdata}<extra></extra>",
+                    customdata=[[round(v, 2)] for v in monthly_data[m]],
+                ))
+            fig.update_layout(
+                barmode="group",
+                height=350,
+                legend=dict(orientation="h", y=1.08, x=0.15),
+                yaxis_title="Normalized Value (0–1)",
+            )
+            st.plotly_chart(apply_theme(fig), use_container_width=True)
+        else:
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Revenue & Tips Over Time</h3>", unsafe_allow_html=True)
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            if not filtered.empty:
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_revenue"], mode="lines", name="Revenue", line=dict(color=COLORS["green"], width=2)), secondary_y=False)
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["avg_tip_pct"], mode="lines", name="Tip %", line=dict(color=COLORS["pink"], width=2)), secondary_y=True)
+            fig.update_layout(height=350, hovermode="x unified")
+            st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     st.divider()
 
@@ -834,73 +945,85 @@ with t2:
 # TAB 3: LOCATIONS
 # ═══════════════════════════════════════════════
 with t3:
-    st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Top Pickup & Dropoff Locations</h3>", unsafe_allow_html=True)
+    has_locations = location_data is not None and not location_data.empty
 
-    top_pu = location_data.groupby("PULocationID").agg(
-        trips=("trips", "sum"), avg_fare=("avg_fare", "mean")
-    ).reset_index().sort_values("trips", ascending=False).head(12)
-    top_pu.columns = ["LocationID", "trips", "avg_fare"]
+    if has_locations:
+        st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Top Pickup & Dropoff Locations</h3>", unsafe_allow_html=True)
 
-    top_do = location_data.groupby("DOLocationID").agg(
-        trips=("trips", "sum"), avg_fare=("avg_fare", "mean")
-    ).reset_index().sort_values("trips", ascending=False).head(12)
-    top_do.columns = ["LocationID", "trips", "avg_fare"]
+        top_pu = location_data.groupby("PULocationID").agg(
+            trips=("trips", "sum"), avg_fare=("avg_fare", "mean")
+        ).reset_index().sort_values("trips", ascending=False).head(12)
+        top_pu.columns = ["LocationID", "trips", "avg_fare"]
 
-    row_l1 = st.columns(2)
+        top_do = location_data.groupby("DOLocationID").agg(
+            trips=("trips", "sum"), avg_fare=("avg_fare", "mean")
+        ).reset_index().sort_values("trips", ascending=False).head(12)
+        top_do.columns = ["LocationID", "trips", "avg_fare"]
 
-    with row_l1[0]:
-        fig = px.bar(
-            top_pu.sort_values("trips"),
-            y="LocationID", x="trips",
-            orientation="h",
-            color="trips",
-            color_continuous_scale=[[0, "#1a1a3e"], [0.5, "#00d4ff"], [1, "#7c3aed"]],
-            labels={"LocationID": "Zone ID", "trips": "Pickup Trips"},
-            text_auto=",.0f",
-        )
-        fig.update_traces(showlegend=False)
-        fig.update_layout(height=400, xaxis_title="Trip Count", yaxis_title="")
+        row_l1 = st.columns(2)
+
+        with row_l1[0]:
+            fig = px.bar(
+                top_pu.sort_values("trips"),
+                y="LocationID", x="trips",
+                orientation="h",
+                color="trips",
+                color_continuous_scale=[[0, "#1a1a3e"], [0.5, "#00d4ff"], [1, "#7c3aed"]],
+                labels={"LocationID": "Zone ID", "trips": "Pickup Trips"},
+                text_auto=",.0f",
+            )
+            fig.update_traces(showlegend=False)
+            fig.update_layout(height=400, xaxis_title="Trip Count", yaxis_title="")
+            st.plotly_chart(apply_theme(fig), use_container_width=True)
+
+        with row_l1[1]:
+            fig = px.bar(
+                top_do.sort_values("trips"),
+                y="LocationID", x="trips",
+                orientation="h",
+                color="trips",
+                color_continuous_scale=[[0, "#1a1a3e"], [0.5, "#7c3aed"], [1, "#f59e0b"]],
+                labels={"LocationID": "Zone ID", "trips": "Dropoff Trips"},
+                text_auto=",.0f",
+            )
+            fig.update_traces(showlegend=False)
+            fig.update_layout(height=400, xaxis_title="Trip Count", yaxis_title="")
+            st.plotly_chart(apply_theme(fig), use_container_width=True)
+
+        st.divider()
+
+        st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Top Routes Flow (Sankey)</h3>", unsafe_allow_html=True)
+        top_routes = location_data.head(20)
+        all_nodes = list(set(top_routes["PULocationID"].tolist() + top_routes["DOLocationID"].tolist()))
+        node_map = {n: i for i, n in enumerate(all_nodes)}
+
+        fig = go.Figure(data=[go.Sankey(
+            node=dict(
+                pad=15,
+                thickness=20,
+                line=dict(color="rgba(255,255,255,0.1)", width=0.5),
+                label=[f"PU {n}" for n in all_nodes],
+                color=[COLORS["cyan"] for n in all_nodes],
+            ),
+            link=dict(
+                source=[node_map[r["PULocationID"]] for _, r in top_routes.iterrows()],
+                target=[node_map[r["DOLocationID"]] for _, r in top_routes.iterrows()],
+                value=top_routes["trips"].tolist(),
+                color=[COLORS["purple"] for _ in range(len(top_routes))],
+                hovertemplate="%{source.label} → %{target.label}<br>Trips: %{value:,.0f}<extra></extra>",
+            ),
+        )])
+        fig.update_layout(height=500)
         st.plotly_chart(apply_theme(fig), use_container_width=True)
-
-    with row_l1[1]:
-        fig = px.bar(
-            top_do.sort_values("trips"),
-            y="LocationID", x="trips",
-            orientation="h",
-            color="trips",
-            color_continuous_scale=[[0, "#1a1a3e"], [0.5, "#7c3aed"], [1, "#f59e0b"]],
-            labels={"LocationID": "Zone ID", "trips": "Dropoff Trips"},
-            text_auto=",.0f",
-        )
-        fig.update_traces(showlegend=False)
-        fig.update_layout(height=400, xaxis_title="Trip Count", yaxis_title="")
-        st.plotly_chart(apply_theme(fig), use_container_width=True)
-
-    st.divider()
-
-    st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Top Routes Flow (Sankey)</h3>", unsafe_allow_html=True)
-    top_routes = location_data.head(20)
-    all_nodes = list(set(top_routes["PULocationID"].tolist() + top_routes["DOLocationID"].tolist()))
-    node_map = {n: i for i, n in enumerate(all_nodes)}
-
-    fig = go.Figure(data=[go.Sankey(
-        node=dict(
-            pad=15,
-            thickness=20,
-            line=dict(color="rgba(255,255,255,0.1)", width=0.5),
-            label=[f"PU {n}" for n in all_nodes],
-            color=[COLORS["cyan"] for n in all_nodes],
-        ),
-        link=dict(
-            source=[node_map[r["PULocationID"]] for _, r in top_routes.iterrows()],
-            target=[node_map[r["DOLocationID"]] for _, r in top_routes.iterrows()],
-            value=top_routes["trips"].tolist(),
-            color=[COLORS["purple"] for _ in range(len(top_routes))],
-            hovertemplate="%{source.label} → %{target.label}<br>Trips: %{value:,.0f}<extra></extra>",
-        ),
-    )])
-    fig.update_layout(height=500)
-    st.plotly_chart(apply_theme(fig), use_container_width=True)
+    else:
+        st.info("Location analysis requires the cleaned Parquet dataset with PULocationID / DOLocationID columns.")
+        st.markdown("""
+            <div style="background:rgba(255,255,255,0.03); border-radius:16px; padding:2rem; text-align:center;">
+                <p style="font-size:3rem; margin:0;">🗺️</p>
+                <p style="color:#64748b;">Location data not available in CSV exports only mode.</p>
+                <p style="color:#475569; font-size:0.85rem;">Run the full pipeline locally to generate the cleaned Parquet dataset.</p>
+            </div>
+        """, unsafe_allow_html=True)
 
     st.divider()
 
@@ -928,6 +1051,8 @@ with t4:
             </p>
         </div>
     """, unsafe_allow_html=True)
+
+    model_ready = model is not None and le is not None
 
     p_col1, p_col2, p_col3 = st.columns(3)
 
@@ -971,29 +1096,47 @@ with t4:
     pred_col, features_col = st.columns([1, 1])
 
     with pred_col:
-        predict_btn = st.button("🚕 Predict Fare", type="primary", use_container_width=True)
+        if model_ready:
+            predict_btn = st.button("🚕 Predict Fare", type="primary", use_container_width=True)
 
-        if predict_btn:
-            time_enc = le.transform([time_of_day])[0]
-            input_data = np.array([[
-                trip_distance, passenger_count, pickup_hour, pickup_dow,
-                pickup_month, 161, 237, payment_type,
-                trip_duration_min, avg_speed_mph, time_enc,
-            ]])
-            prediction = round(float(model.predict(input_data)[0]), 2)
+            if predict_btn:
+                time_enc = le.transform([time_of_day])[0]
+                input_data = np.array([[
+                    trip_distance, passenger_count, pickup_hour, pickup_dow,
+                    pickup_month, 161, 237, payment_type,
+                    trip_duration_min, avg_speed_mph, time_enc,
+                ]])
+                prediction = round(float(model.predict(input_data)[0]), 2)
 
-            st.markdown(f"""
-                <div style="background:linear-gradient(135deg, rgba(0,212,255,0.1), rgba(124,58,237,0.1));
-                          border:1px solid rgba(0,212,255,0.2); border-radius:16px;
-                          padding:1.5rem; text-align:center;">
-                    <p style="color:#94a3b8; font-size:0.85rem; margin:0;">Predicted Fare</p>
-                    <p style="font-size:3.5rem; font-weight:800; margin:0;
-                              background:linear-gradient(135deg, #00d4ff, #7c3aed);
-                              -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                        ${prediction:.2f}
-                    </p>
-                    <p style="color:#64748b; font-size:0.85rem; margin:0.5rem 0 0 0;">
-                        Based on 11 features · GradientBoosting model
+                st.markdown(f"""
+                    <div style="background:linear-gradient(135deg, rgba(0,212,255,0.1), rgba(124,58,237,0.1));
+                              border:1px solid rgba(0,212,255,0.2); border-radius:16px;
+                              padding:1.5rem; text-align:center;">
+                        <p style="color:#94a3b8; font-size:0.85rem; margin:0;">Predicted Fare</p>
+                        <p style="font-size:3.5rem; font-weight:800; margin:0;
+                                  background:linear-gradient(135deg, #00d4ff, #7c3aed);
+                                  -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                            ${prediction:.2f}
+                        </p>
+                        <p style="color:#64748b; font-size:0.85rem; margin:0.5rem 0 0 0;">
+                            Based on 11 features · GradientBoosting model
+                        </p>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+                              border-radius:16px; padding:2rem; text-align:center;">
+                        <p style="color:#64748b; font-size:2rem; margin:0;">🚕</p>
+                        <p style="color:#64748b; margin:0;">Adjust parameters and click Predict</p>
+                    </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("""
+                <div style="margin-top:1rem;">
+                    <p style="color:#475569; font-size:0.8rem;">
+                        Model trained on 400K trips with 11 features.
+                        Pickup/dropoff default to Manhattan zones 161 and 237.
                     </p>
                 </div>
             """, unsafe_allow_html=True)
@@ -1001,19 +1144,16 @@ with t4:
             st.markdown("""
                 <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
                           border-radius:16px; padding:2rem; text-align:center;">
-                    <p style="color:#64748b; font-size:2rem; margin:0;">🚕</p>
-                    <p style="color:#64748b; margin:0;">Adjust parameters and click Predict</p>
+                    <p style="color:#64748b; font-size:3rem; margin:0;">🧠</p>
+                    <p style="color:#94a3b8; font-size:1.1rem; margin:0.5rem 0 0 0;">Model not loaded</p>
+                    <p style="color:#64748b; font-size:0.85rem; margin-top:0.5rem;">
+                        The ML model file (best_model.pkl) is not available in this environment.
+                    </p>
+                    <p style="color:#475569; font-size:0.8rem;">
+                        Run the full pipeline locally to generate the model artifact.
+                    </p>
                 </div>
             """, unsafe_allow_html=True)
-
-        st.markdown("""
-            <div style="margin-top:1rem;">
-                <p style="color:#475569; font-size:0.8rem;">
-                    Model trained on 400K trips with 11 features.
-                    Pickup/dropoff default to Manhattan zones 161 and 237.
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
 
     with features_col:
         st.markdown("<p style='color:#94a3b8; font-size:0.85rem; font-weight:600;'>CURRENT INPUT VALUES</p>", unsafe_allow_html=True)
