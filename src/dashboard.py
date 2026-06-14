@@ -624,6 +624,7 @@ with t1:
                     hovertemplate="%{x|%b %d}<br>MA: %{y:,.0f}<extra></extra>",
                 ),
                 secondary_y=False,
+                
             )
         fig.add_trace(
             go.Scatter(
