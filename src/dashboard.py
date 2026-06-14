@@ -364,37 +364,60 @@ def get_metrics_summary():
 
 @st.cache_data
 def get_rush_hour_breakdown():
-    return query("""
-        SELECT
-            time_of_day,
-            COUNT(*) AS trips,
-            ROUND(AVG(fare_amount), 2) AS avg_fare,
-            ROUND(AVG(trip_distance), 2) AS avg_distance,
-            ROUND(AVG(tip_amount), 2) AS avg_tip
-        FROM read_parquet('data/processed/trips_cleaned.parquet')
-        GROUP BY time_of_day
-        ORDER BY trips DESC
-    """)
+    if data_src["has_raw"]:
+        return query("""
+            SELECT
+                time_of_day,
+                COUNT(*) AS trips,
+                ROUND(AVG(fare_amount), 2) AS avg_fare,
+                ROUND(AVG(trip_distance), 2) AS avg_distance,
+                ROUND(AVG(tip_amount), 2) AS avg_tip
+            FROM read_parquet('data/processed/trips_cleaned.parquet')
+            GROUP BY time_of_day
+            ORDER BY trips DESC
+        """)
+    if data_src["csv_hourly"]:
+        df = pd.read_csv("exports/mart_hourly_patterns.csv")
+        return df.groupby("time_of_day").agg(
+            trips=("total_trips", "sum"),
+            avg_fare=("avg_fare", "mean"),
+            avg_tip=("avg_tip_pct", "mean"),
+        ).reset_index().sort_values("trips", ascending=False)
+    return None
 
 @st.cache_data
 def get_dow_breakdown():
-    df = query("""
-        SELECT
-            pickup_dow,
-            COUNT(*) AS trips,
-            ROUND(AVG(fare_amount), 2) AS avg_fare,
-            ROUND(AVG(tip_amount), 2) AS avg_tip,
-            ROUND(AVG(trip_distance), 2) AS avg_distance,
-            ROUND(AVG(trip_duration_min), 2) AS avg_duration
-        FROM read_parquet('data/processed/trips_cleaned.parquet')
-        GROUP BY pickup_dow
-        ORDER BY pickup_dow
-    """)
-    if df is not None:
-        df["day"] = df["pickup_dow"].map({
-            0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"
-        })
-    return df
+    if data_src["has_raw"]:
+        df = query("""
+            SELECT
+                pickup_dow,
+                COUNT(*) AS trips,
+                ROUND(AVG(fare_amount), 2) AS avg_fare,
+                ROUND(AVG(tip_amount), 2) AS avg_tip,
+                ROUND(AVG(trip_distance), 2) AS avg_distance,
+                ROUND(AVG(trip_duration_min), 2) AS avg_duration
+            FROM read_parquet('data/processed/trips_cleaned.parquet')
+            GROUP BY pickup_dow
+            ORDER BY pickup_dow
+        """)
+        if df is not None:
+            df["day"] = df["pickup_dow"].map({
+                0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"
+            })
+        return df
+    if data_src["csv_daily"]:
+        df = pd.read_csv("exports/mart_daily_summary.csv", parse_dates=["trip_date"])
+        df["dow_num"] = df["trip_date"].dt.dayofweek
+        df["day"] = df["trip_date"].dt.day_name().str[:3]
+        dow = df.groupby(["dow_num", "day"]).agg(
+            trips=("total_trips", "sum"),
+            avg_fare=("avg_fare", "mean"),
+            avg_tip=("avg_tip_pct", "mean"),
+            avg_distance=("avg_distance", "mean"),
+        ).reset_index().sort_values("dow_num")
+        dow["avg_duration"] = dow["avg_distance"] / 15 * 60
+        return dow
+    return None
 
 @st.cache_data
 def get_monthly_breakdown():
@@ -648,6 +671,7 @@ with t1:
 
     if has_rush:
         rush_hour["label"] = rush_hour["time_of_day"].map(rush_labels)
+        max_trips = rush_hour["trips"].max()
 
     with row2[0]:
         if has_rush:
@@ -660,22 +684,25 @@ with t1:
             fig.update_traces(showlegend=False)
         else:
             fig = go.Figure()
-            fig.add_annotation(text="Raw data not available<br>Load DuckDB or Parquet", showarrow=False, font=dict(size=14, color="#64748b"))
+            fig.add_trace(go.Bar(x=["Weekday", "Weekend"], y=[
+                filtered[~filtered["is_weekend"]]["total_trips"].sum() if not filtered.empty else 0,
+                filtered[filtered["is_weekend"]]["total_trips"].sum() if not filtered.empty else 0
+            ], marker_color=[COLORS["cyan"], COLORS["purple"]], text=[f"{filtered[~filtered['is_weekend']]['total_trips'].sum():,.0f}" if not filtered.empty else "0", f"{filtered[filtered['is_weekend']]['total_trips'].sum():,.0f}" if not filtered.empty else "0"], textposition="outside"))
+            fig.update_layout(title="Trips: Weekday vs Weekend")
         fig.update_layout(height=300, xaxis_title="", yaxis_title="Trips")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row2[1]:
-        if has_rush:
-            fig = px.bar(
-                rush_hour, x="label", y="avg_fare", color="time_of_day",
-                color_discrete_map=rush_colors,
-                text_auto=".2f",
-                title="Avg Fare by Time of Day",
-            )
+        fig = px.bar(
+            hourly, x="pickup_hour", y="avg_fare",
+            color="time_of_day", color_discrete_map=rush_colors,
+            title="Avg Fare by Hour ($)",
+            labels={"pickup_hour": "Hour", "avg_fare": "Fare ($)", "time_of_day": ""},
+            text_auto=".1f",
+        ) if not hourly.empty else go.Figure()
+        if not hourly.empty:
             fig.update_traces(showlegend=False)
-        else:
-            fig = go.Figure()
-            fig.add_annotation(text="Data not available", showarrow=False, font=dict(size=14, color="#64748b"))
+            fig.update_xaxes(dtick=4)
         fig.update_layout(height=300, xaxis_title="", yaxis_title="Avg Fare ($)")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
@@ -684,14 +711,15 @@ with t1:
             fig = px.bar(
                 rush_hour, x="label", y="avg_tip", color="time_of_day",
                 color_discrete_map=rush_colors,
-                text_auto=".2f",
-                title="Avg Tip by Time of Day",
+                text_auto=".1f",
+                title="Avg Tip % by Time of Day",
             )
             fig.update_traces(showlegend=False)
         else:
             fig = go.Figure()
-            fig.add_annotation(text="Data not available", showarrow=False, font=dict(size=14, color="#64748b"))
-        fig.update_layout(height=300, xaxis_title="", yaxis_title="Avg Tip ($)")
+            fig.add_trace(go.Scatter(x=filtered["trip_date"] if not filtered.empty else [], y=filtered["avg_tip_pct"] if not filtered.empty else [], mode="lines+markers", name="Tip %", line=dict(color=COLORS["pink"], width=2)))
+            fig.update_layout(title="Daily Tip Rate Trend")
+        fig.update_layout(height=300, xaxis_title="", yaxis_title="Avg Tip (%)")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row2[3]:
@@ -707,13 +735,32 @@ with t1:
                 hole=0.5,
             )
             fig.update_traces(textposition="outside", textinfo="percent")
+        elif not filtered.empty:
+            ww = filtered.groupby("is_weekend").agg(trips=("total_trips", "sum")).reset_index()
+            ww["label"] = ww["is_weekend"].map({False: "Weekday", True: "Weekend"})
+            fig = px.pie(
+                ww, values="trips", names="label",
+                title="Weekday vs Weekend",
+                color="label",
+                color_discrete_map={"Weekday": COLORS["cyan"], "Weekend": COLORS["purple"]},
+                hole=0.5,
+            )
+            fig.update_traces(textposition="outside", textinfo="percent")
         else:
             fig = go.Figure()
-            fig.add_annotation(text="Data not available", showarrow=False, font=dict(size=14, color="#64748b"))
         fig.update_layout(height=300, showlegend=False)
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     st.divider()
+
+    if has_rush:
+        evening_trips = rush_hour[rush_hour["time_of_day"] == "evening_rush"]["trips"].values[0]
+        morning_trips = rush_hour[rush_hour["time_of_day"] == "morning_rush"]["trips"].values[0]
+        rush_ratio = f"{evening_trips / morning_trips:.1f}x" if morning_trips > 0 else "N/A"
+    else:
+        evening_trips = filtered["evening_rush_trips"].sum() if not filtered.empty else 0
+        morning_trips = filtered["morning_rush_trips"].sum() if not filtered.empty else 0
+        rush_ratio = f"{evening_trips / morning_trips:.1f}x" if morning_trips > 0 else "N/A"
 
     insight_trips = f"{metrics['total_trips']:,.0f}" if metrics else f"{daily['total_trips'].sum():,.0f}"
     insight_fare = f"${metrics['avg_fare']}" if metrics else f"${avg_fare_f:.2f}"
@@ -723,11 +770,11 @@ with t1:
         <div class="insight-box">
             <p><strong style="color:#00d4ff;">Key Insight:</strong>
             The pipeline processes <strong>{}</strong> trips with an average fare of
-            <strong>{}</strong>. Credit card payments dominate at
-            <strong>{}%</strong>. Evening rush hour sees the highest fares, while
-            morning rush has the highest trip volume relative to off-peak hours.</p>
+            <strong>{}</strong>. Evening rush hour sees <strong>{}</strong> more
+            trips than morning rush. Credit card payments dominate at
+            <strong>{}%</strong>.</p>
         </div>
-    """.format(insight_trips, insight_fare, insight_card_pct), unsafe_allow_html=True)
+    """.format(insight_trips, insight_fare, rush_ratio, insight_card_pct), unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════
 # TAB 2: TIME & PATTERNS
@@ -767,7 +814,18 @@ with t2:
         fig.update_yaxes(dtick=2, autorange="reversed")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
     else:
-        st.info("Hour × Day heatmap requires the cleaned Parquet dataset. Only CSV exports are available in this environment.")
+        st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Hourly Trip Distribution</h3>", unsafe_allow_html=True)
+        if not hourly.empty:
+            fig = px.bar(
+                hourly, x="pickup_hour", y="total_trips", color="time_of_day",
+                color_discrete_map=rush_colors,
+                title="Trips by Hour of Day",
+                labels={"pickup_hour": "Hour", "total_trips": "Trips"},
+                text_auto=",.0f",
+            )
+            fig.update_layout(height=450, showlegend=False)
+            fig.update_xaxes(dtick=2)
+            st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     st.divider()
 
@@ -803,17 +861,18 @@ with t2:
             )
             st.plotly_chart(apply_theme(fig), use_container_width=True)
         else:
-            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Daily Trip Trend</h3>", unsafe_allow_html=True)
-            fig = px.line(
-                filtered, x="trip_date", y="total_trips",
-                labels={"trip_date": "", "total_trips": "Trips"},
-            )
-            fig.update_traces(line=dict(color=COLORS["cyan"], width=2.5))
-            fig.update_layout(height=450, hovermode="x unified")
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Daily Trip & Revenue Trend</h3>", unsafe_allow_html=True)
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            if not filtered.empty:
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_trips"], mode="lines", name="Trips", line=dict(color=COLORS["cyan"], width=2.5), fill="tozeroy", fillcolor="rgba(0,212,255,0.08)"), secondary_y=False)
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_revenue"], mode="lines", name="Revenue", line=dict(color=COLORS["purple"], width=2)), secondary_y=True)
+            fig.update_layout(height=450, hovermode="x unified", legend=dict(orientation="h", y=1.08, x=0.25))
+            fig.update_yaxes(title="Trips", secondary_y=False)
+            fig.update_yaxes(title="Revenue ($)", secondary_y=True)
             st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row_t1[1]:
-        if has_dow:
+        if has_dow and len(dow_data) >= 5:
             st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Day of Week — Multi-Metric Radar</h3>", unsafe_allow_html=True)
             dow_norm = dow_data.copy()
             for col in ["trips", "avg_fare", "avg_tip", "avg_distance", "avg_duration"]:
@@ -848,13 +907,14 @@ with t2:
             )
             st.plotly_chart(apply_theme(fig), use_container_width=True)
         else:
-            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Daily Fare Trend</h3>", unsafe_allow_html=True)
-            fig = px.line(
-                filtered, x="trip_date", y="avg_fare",
-                labels={"trip_date": "", "avg_fare": "Avg Fare ($)"},
-            )
-            fig.update_traces(line=dict(color=COLORS["amber"], width=2.5))
-            fig.update_layout(height=450, hovermode="x unified")
+            st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Revenue & Tip Trend</h3>", unsafe_allow_html=True)
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            if not filtered.empty:
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_revenue"], mode="lines", name="Revenue", line=dict(color=COLORS["green"], width=2.5), fill="tozeroy", fillcolor="rgba(16,185,129,0.08)"), secondary_y=False)
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["avg_tip_pct"], mode="lines", name="Tip %", line=dict(color=COLORS["pink"], width=2)), secondary_y=True)
+            fig.update_layout(height=450, hovermode="x unified", legend=dict(orientation="h", y=1.08, x=0.25))
+            fig.update_yaxes(title="Revenue ($)", secondary_y=False)
+            fig.update_yaxes(title="Tip (%)", secondary_y=True)
             st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     st.divider()
@@ -1016,12 +1076,42 @@ with t3:
         fig.update_layout(height=500)
         st.plotly_chart(apply_theme(fig), use_container_width=True)
     else:
-        st.info("Location analysis requires the cleaned Parquet dataset with PULocationID / DOLocationID columns.")
+        st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Trip Activity Overview</h3>", unsafe_allow_html=True)
+        col_l1, col_l2 = st.columns(2)
+
+        with col_l1:
+            st.markdown("<h4 style='color:#94a3b8; font-weight:500;'>Daily Rush Hour Split</h4>", unsafe_allow_html=True)
+            if not filtered.empty:
+                rush_pivot = filtered[["trip_date", "morning_rush_trips", "evening_rush_trips"]].melt(
+                    id_vars=["trip_date"], var_name="period", value_name="trips"
+                )
+                rush_pivot["period"] = rush_pivot["period"].map({
+                    "morning_rush_trips": "Morning (6-10)",
+                    "evening_rush_trips": "Evening (16-20)",
+                })
+                fig = px.area(
+                    rush_pivot, x="trip_date", y="trips", color="period",
+                    color_discrete_map={"Morning (6-10)": COLORS["amber"], "Evening (16-20)": COLORS["purple"]},
+                )
+                fig.update_layout(height=350, legend=dict(orientation="h", y=1.08, x=0.2))
+                st.plotly_chart(apply_theme(fig), use_container_width=True)
+
+        with col_l2:
+            st.markdown("<h4 style='color:#94a3b8; font-weight:500;'>Daily Metrics Overview</h4>", unsafe_allow_html=True)
+            if not filtered.empty:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["avg_distance"], mode="lines+markers", name="Avg Distance (mi)", line=dict(color=COLORS["green"], width=2)))
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["avg_duration_min"], mode="lines+markers", name="Avg Duration (min)", line=dict(color=COLORS["pink"], width=2)))
+                fig.update_layout(height=350, legend=dict(orientation="h", y=1.08, x=0.2), hovermode="x unified")
+                st.plotly_chart(apply_theme(fig), use_container_width=True)
+
         st.markdown("""
-            <div style="background:rgba(255,255,255,0.03); border-radius:16px; padding:2rem; text-align:center;">
-                <p style="font-size:3rem; margin:0;">🗺️</p>
-                <p style="color:#64748b;">Location data not available in CSV exports only mode.</p>
-                <p style="color:#475569; font-size:0.85rem;">Run the full pipeline locally to generate the cleaned Parquet dataset.</p>
+            <div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:1rem; margin-top:1rem;
+                        border:1px solid rgba(255,255,255,0.06);">
+                <p style="color:#64748b; margin:0; font-size:0.9rem;">
+                    📍 <strong>Location-specific analysis</strong> (top pickup/dropoff zones, route Sankey diagram)
+                    requires the full Parquet dataset. Deploy the complete pipeline to enable spatial analytics.
+                </p>
             </div>
         """, unsafe_allow_html=True)
 
