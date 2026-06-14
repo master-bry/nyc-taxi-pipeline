@@ -89,22 +89,36 @@ st.markdown("""
     }
 
     div[data-testid="stMetric"] label {
-        font-size: 0.85rem !important;
-        font-weight: 500 !important;
+        font-size: 0.75rem !important;
+        font-weight: 600 !important;
         color: #94a3b8 !important;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        text-transform: none !important;
+        letter-spacing: 0 !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-        font-size: 2rem !important;
+        font-size: 1.5rem !important;
         font-weight: 700 !important;
         color: #fff !important;
-        line-height: 1.2;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     div[data-testid="stMetric"] [data-testid="stMetricDelta"] {
-        font-size: 0.85rem !important;
+        font-size: 0.75rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    div[data-testid="column"] {
+        min-width: 0;
+        overflow: hidden;
     }
 
     .stButton button[kind="primary"] {
@@ -209,7 +223,8 @@ THEME = {
         "font_color": "#f1f5f9",
         "bordercolor": "rgba(255,255,255,0.1)",
     },
-    "margin": {"l": 0, "r": 0, "t": 10, "b": 0},
+    "margin": {"l": 0, "r": 0, "t": 45, "b": 0},
+    "title": {"automargin": True, "font": {"size": 13}},
 }
 
 def apply_theme(fig):
@@ -550,22 +565,19 @@ revenue_metric = f"${metrics['total_revenue']:,.0f} total" if metrics else f"${t
 fare_metric = f"${metrics['avg_fare']:.2f} overall" if metrics else f"${avg_fare_f:.2f}"
 tip_metric = f"{metrics['avg_tip_pct']:.1f}% overall" if metrics else f"{avg_tip_f:.1f}%"
 
-k1, k2, k3, k4, k5 = st.columns(5)
+k1, k2, k3, k4 = st.columns(4)
 
 with k1:
     st.metric("Total Trips", f"{total_trips_f:,.0f}", total_metric)
 
 with k2:
-    st.metric("Total Revenue", f"${total_revenue_f:,.0f}", revenue_metric)
+    st.metric("Revenue", f"${total_revenue_f:,.0f}", revenue_metric)
 
 with k3:
     st.metric("Avg Fare", f"${avg_fare_f:.2f}", fare_metric)
 
 with k4:
-    st.metric("Avg Tip Rate", f"{avg_tip_f:.1f}%", tip_metric)
-
-with k5:
-    st.metric("Active Days", f"{len(filtered)}", f"90 in Q1")
+    st.metric("Tip Rate", f"{avg_tip_f:.1f}%", tip_metric)
 
 st.divider()
 
@@ -688,22 +700,22 @@ with t1:
                 filtered[~filtered["is_weekend"]]["total_trips"].sum() if not filtered.empty else 0,
                 filtered[filtered["is_weekend"]]["total_trips"].sum() if not filtered.empty else 0
             ], marker_color=[COLORS["cyan"], COLORS["purple"]], text=[f"{filtered[~filtered['is_weekend']]['total_trips'].sum():,.0f}" if not filtered.empty else "0", f"{filtered[filtered['is_weekend']]['total_trips'].sum():,.0f}" if not filtered.empty else "0"], textposition="outside"))
-            fig.update_layout(title="Trips: Weekday vs Weekend")
-        fig.update_layout(height=300, xaxis_title="", yaxis_title="Trips")
+            fig.update_layout(title="Weekday vs Weekend")
+        fig.update_layout(height=300, xaxis_title="", yaxis_title="")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row2[1]:
         fig = px.bar(
             hourly, x="pickup_hour", y="avg_fare",
             color="time_of_day", color_discrete_map=rush_colors,
-            title="Avg Fare by Hour ($)",
+            title="Fare by Hour",
             labels={"pickup_hour": "Hour", "avg_fare": "Fare ($)", "time_of_day": ""},
             text_auto=".1f",
         ) if not hourly.empty else go.Figure()
         if not hourly.empty:
             fig.update_traces(showlegend=False)
             fig.update_xaxes(dtick=4)
-        fig.update_layout(height=300, xaxis_title="", yaxis_title="Avg Fare ($)")
+        fig.update_layout(height=300, xaxis_title="", yaxis_title="")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
     with row2[2]:
@@ -712,13 +724,13 @@ with t1:
                 rush_hour, x="label", y="avg_tip", color="time_of_day",
                 color_discrete_map=rush_colors,
                 text_auto=".1f",
-                title="Avg Tip % by Time of Day",
+                title="Avg Tip %",
             )
             fig.update_traces(showlegend=False)
         else:
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=filtered["trip_date"] if not filtered.empty else [], y=filtered["avg_tip_pct"] if not filtered.empty else [], mode="lines+markers", name="Tip %", line=dict(color=COLORS["pink"], width=2)))
-            fig.update_layout(title="Daily Tip Rate Trend")
+            fig.update_layout(title="Tip Rate Trend")
         fig.update_layout(height=300, xaxis_title="", yaxis_title="Avg Tip (%)")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
 
