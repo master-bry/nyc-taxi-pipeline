@@ -539,6 +539,7 @@ with st.sidebar:
 # ──────────────────────────────────────────────
 # TITLE SECTION
 # ──────────────────────────────────────────────
+
 st.markdown("""
     <div style="margin-bottom:1.5rem;">
         <h1 style="font-size:2.5rem; font-weight:800; margin:0;
