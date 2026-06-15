@@ -461,6 +461,7 @@ def load_model():
 # ──────────────────────────────────────────────
 # LOAD ALL DATA
 # ──────────────────────────────────────────────
+
 with st.spinner("Loading pipeline data..."):
     daily = get_daily_summary()
     hourly = get_hourly_patterns()
@@ -479,6 +480,7 @@ with st.spinner("Loading pipeline data..."):
 # ──────────────────────────────────────────────
 # SIDEBAR
 # ──────────────────────────────────────────────
+
 with st.sidebar:
     st.markdown("""
         <div style="text-align:center; padding:1rem 0;">
