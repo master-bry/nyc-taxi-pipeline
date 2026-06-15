@@ -200,6 +200,7 @@ st.markdown("""
 # ──────────────────────────────────────────────
 # PLOTLY DARK THEME DEFAULTS
 # ──────────────────────────────────────────────
+
 THEME = {
     "paper_bgcolor": "rgba(0,0,0,0)",
     "plot_bgcolor": "rgba(0,0,0,0)",
@@ -245,6 +246,7 @@ COLORS = {
 # ──────────────────────────────────────────────
 # DATA SOURCE DETECTION
 # ──────────────────────────────────────────────
+
 @st.cache_data
 def check_data_available():
     db_ok = os.path.exists("data/taxi.duckdb")
@@ -266,6 +268,7 @@ data_src = check_data_available()
 # ──────────────────────────────────────────────
 # DUCKDB CONNECTION
 # ──────────────────────────────────────────────
+
 @st.cache_resource
 def get_duckdb():
     if data_src["duckdb"]:
