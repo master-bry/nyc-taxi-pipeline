@@ -560,6 +560,7 @@ total_revenue_f = filtered["total_revenue"].sum() if not filtered.empty else 0
 avg_fare_f = filtered["avg_fare"].mean() if not filtered.empty else 0
 avg_tip_f = filtered["avg_tip_pct"].mean() if not filtered.empty else 0
 
+
 total_metric = f"{metrics['total_trips']:,.0f} total" if metrics else f"{total_trips_f:,.0f}"
 revenue_metric = f"${metrics['total_revenue']:,.0f} total" if metrics else f"${total_revenue_f:,.0f}"
 fare_metric = f"${metrics['avg_fare']:.2f} overall" if metrics else f"${avg_fare_f:.2f}"
@@ -597,7 +598,7 @@ t1, t2, t3, t4, t5 = st.tabs([
 # TAB 1: OVERVIEW
 # ═══════════════════════════════════════════════
  
- with t1:
+with t1:
     row1 = st.columns([3, 2])
 
     with row1[0]:
