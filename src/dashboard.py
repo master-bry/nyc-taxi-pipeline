@@ -20,7 +20,7 @@ import os
 # PAGE CONFIG
 # ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="NYC Taxi Analytics · Q1 2023",
+    page_title="NYC Taxi Analytics",
     page_icon="🚕",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -585,11 +585,11 @@ st.divider()
 # TABS
 # ──────────────────────────────────────────────
 t1, t2, t3, t4, t5 = st.tabs([
-    "📊  Overview",
-    "⏰  Time & Patterns",
-    "🗺️  Locations",
-    "💰  Fare Predictor",
-    "🔧  About",
+    " Overview",
+    " Time & Patterns",
+    " Locations",
+    " Fare Predictor",
+    " About",
 ])
 
 # ═══════════════════════════════════════════════
