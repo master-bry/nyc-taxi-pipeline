@@ -584,6 +584,7 @@ st.divider()
 # ──────────────────────────────────────────────
 # TABS
 # ──────────────────────────────────────────────
+
 t1, t2, t3, t4, t5 = st.tabs([
     " Overview",
     " Time & Patterns",
@@ -595,7 +596,8 @@ t1, t2, t3, t4, t5 = st.tabs([
 # ═══════════════════════════════════════════════
 # TAB 1: OVERVIEW
 # ═══════════════════════════════════════════════
-with t1:
+ 
+ with t1:
     row1 = st.columns([3, 2])
 
     with row1[0]:
@@ -792,6 +794,7 @@ with t1:
 # ═══════════════════════════════════════════════
 # TAB 2: TIME & PATTERNS
 # ═══════════════════════════════════════════════
+
 with t2:
     has_heatmap = heatmap_data is not None and not heatmap_data.empty
     has_scatter = scatter_sample is not None and not scatter_sample.empty
@@ -1143,6 +1146,7 @@ with t3:
 # ═══════════════════════════════════════════════
 # TAB 4: FARE PREDICTOR
 # ═══════════════════════════════════════════════
+
 with t4:
     st.markdown("""
         <div style="margin-bottom:0.5rem;">
@@ -1285,6 +1289,7 @@ with t4:
 # ═══════════════════════════════════════════════
 # TAB 5: ABOUT
 # ═══════════════════════════════════════════════
+
 with t5:
     st.markdown("""
         <div style="margin-bottom:1rem;">
