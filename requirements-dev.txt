@@ -1,0 +1,32 @@
+# Development dependencies for NYC Taxi Pipeline
+# Install with: pip install -r requirements-dev.txt
+
+# Type checking
+mypy>=1.7.0
+types-requests>=2.31.0
+types-tqdm>=4.66.0
+
+# Code formatting
+black>=23.12.0
+isort>=5.13.0
+
+# Linting
+flake8>=6.1.0
+pylint>=3.0.0
+pylint-django>=2.5.0
+
+# Pre-commit hooks
+pre-commit>=3.5.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+
+# Code quality
+ruff>=0.1.0
+bandit>=1.7.0
+
+# Documentation
+sphinx>=7.2.0
+sphinx-rtd-theme>=2.0.0
