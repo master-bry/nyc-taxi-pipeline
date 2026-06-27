@@ -76,9 +76,9 @@ st.markdown("""
     }
 
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(124,58,237,0.2)) !important;
+        background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(8,145,178,0.2)) !important;
         color: #fff !important;
-        box-shadow: 0 0 20px rgba(0,212,255,0.15);
+        box-shadow: 0 0 20px rgba(37,99,235,0.15);
     }
 
     div[data-testid="stMetric"] {
@@ -92,7 +92,7 @@ st.markdown("""
 
     div[data-testid="stMetric"]:hover {
         background: rgba(255,255,255,0.08);
-        border-color: rgba(0,212,255,0.3);
+        border-color: rgba(37,99,235,0.3);
         transform: translateY(-2px);
         box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
@@ -131,7 +131,7 @@ st.markdown("""
     }
 
     .stButton button[kind="primary"] {
-        background: linear-gradient(135deg, #00d4ff, #7c3aed) !important;
+        background: linear-gradient(135deg, #2563eb, #0891b2) !important;
         border: none !important;
         border-radius: 12px !important;
         padding: 0.75rem 2rem !important;
@@ -139,13 +139,13 @@ st.markdown("""
         font-size: 0.95rem !important;
         color: #fff !important;
         transition: all 0.3s ease !important;
-        box-shadow: 0 4px 24px rgba(0,212,255,0.25) !important;
+        box-shadow: 0 4px 24px rgba(37,99,235,0.25) !important;
         letter-spacing: 0.01em;
     }
 
     .stButton button[kind="primary"]:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 8px 40px rgba(0,212,255,0.4) !important;
+        box-shadow: 0 8px 40px rgba(37,99,235,0.4) !important;
     }
 
     .stSelectbox, .stSlider {
@@ -176,8 +176,8 @@ st.markdown("""
     }
 
     .insight-box {
-        background: linear-gradient(135deg, rgba(0,212,255,0.08), rgba(124,58,237,0.08));
-        border: 1px solid rgba(0,212,255,0.15);
+        background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(8,145,178,0.08));
+        border: 1px solid rgba(37,99,235,0.15);
         border-radius: 16px;
         padding: 1.25rem 1.5rem;
         margin: 1rem 0;
@@ -243,14 +243,14 @@ def apply_theme(fig):
     return fig
 
 COLORS = {
-    "cyan": "#00d4ff",
-    "purple": "#7c3aed",
-    "amber": "#f59e0b",
-    "pink": "#ec4899",
-    "green": "#10b981",
-    "red": "#ef4444",
-    "blue": "#3b82f6",
-    "teal": "#14b8a6",
+    "blue": "#2563eb",
+    "teal": "#0891b2",
+    "amber": "#d97706",
+    "pink": "#db2777",
+    "green": "#059669",
+    "red": "#dc2626",
+    "cyan": "#06b6d4",
+    "purple": "#0891b2",
 }
 
 # ──────────────────────────────────────────────
@@ -497,7 +497,7 @@ with st.spinner("Loading pipeline data..."):
 with st.sidebar:
     st.markdown("""
         <div style="text-align:center; padding:1rem 0;">
-            <h3 style="margin:0; font-weight:700; font-size:1.5rem; background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            <h3 style="margin:0; font-weight:700; font-size:1.5rem; background: linear-gradient(135deg, #2563eb, #0891b2);
                        -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                 NYC TAXI
             </h3>
@@ -544,9 +544,9 @@ with st.sidebar:
     st.markdown("""
         <p style="color:#475569; font-size:0.8rem; text-align:center;">
             Built by Brayan Hawald Ngowi<br>
-            <a href="https://github.com/masterbry" style="color:#00d4ff; text-decoration:none;">GitHub</a>
+            <a href="https://github.com/masterbry" style="color:#2563eb; text-decoration:none;">GitHub</a>
             ·
-            <a href="https://master-bry.vercel.app" style="color:#00d4ff; text-decoration:none;">Portfolio</a>
+            <a href="https://master-bry.vercel.app" style="color:#2563eb; text-decoration:none;">Portfolio</a>
         </p>
     """, unsafe_allow_html=True)
 
@@ -625,9 +625,9 @@ with t1:
             go.Scatter(
                 x=filtered["trip_date"], y=filtered["total_trips"],
                 mode="lines", name="Daily Trips",
-                line=dict(color=COLORS["cyan"], width=2.5),
+                line=dict(color=COLORS["blue"], width=2.5),
                 fill="tozeroy",
-                fillcolor="rgba(0,212,255,0.08)",
+                fillcolor="rgba(37,99,235,0.08)",
                 hovertemplate="%{x|%b %d}<br>Trips: %{y:,.0f}<extra></extra>",
             ),
             secondary_y=False,
@@ -648,8 +648,8 @@ with t1:
             go.Scatter(
                 x=filtered["trip_date"], y=filtered["total_revenue"],
                 mode="lines+markers", name="Revenue ($)",
-                line=dict(color=COLORS["purple"], width=2),
-                marker=dict(size=4, color=COLORS["purple"]),
+                line=dict(color=COLORS["teal"], width=2),
+                marker=dict(size=4, color=COLORS["teal"]),
                 yaxis="y2",
                 hovertemplate="%{x|%b %d}<br>Revenue: $%{y:,.0f}<extra></extra>",
             ),
@@ -676,8 +676,8 @@ with t1:
             month_rev, values="total_revenue", names="month",
             color="month",
             color_discrete_map={
-                "January": COLORS["cyan"],
-                "February": COLORS["purple"],
+                "January": COLORS["blue"],
+                "February": COLORS["teal"],
                 "March": COLORS["amber"],
             },
             hole=0.55,
@@ -694,7 +694,7 @@ with t1:
 
     row2 = st.columns(4)
 
-    rush_colors = {"morning_rush": COLORS["amber"], "evening_rush": COLORS["purple"], "off_peak": COLORS["cyan"]}
+    rush_colors = {"morning_rush": COLORS["amber"], "evening_rush": COLORS["teal"], "off_peak": COLORS["blue"]}
     rush_labels = {"morning_rush": "Morning Rush", "evening_rush": "Evening Rush", "off_peak": "Off-Peak"}
 
     has_rush = rush_hour is not None and not rush_hour.empty
@@ -718,7 +718,7 @@ with t1:
             fig.add_trace(go.Bar(x=["Weekday", "Weekend"], y=[
                 filtered[~filtered["is_weekend"]]["total_trips"].sum() if not filtered.empty else 0,
                 filtered[filtered["is_weekend"]]["total_trips"].sum() if not filtered.empty else 0
-            ], marker_color=[COLORS["cyan"], COLORS["purple"]], text=[f"{filtered[~filtered['is_weekend']]['total_trips'].sum():,.0f}" if not filtered.empty else "0", f"{filtered[filtered['is_weekend']]['total_trips'].sum():,.0f}" if not filtered.empty else "0"], textposition="outside"))
+            ], marker_color=[COLORS["blue"], COLORS["teal"]], text=[f"{filtered[~filtered['is_weekend']]['total_trips'].sum():,.0f}" if not filtered.empty else "0", f"{filtered[filtered['is_weekend']]['total_trips'].sum():,.0f}" if not filtered.empty else "0"], textposition="outside"))
             fig.update_layout(title="Weekday vs Weekend")
         fig.update_layout(height=300, xaxis_title="", yaxis_title="")
         st.plotly_chart(apply_theme(fig), use_container_width=True)
@@ -760,7 +760,7 @@ with t1:
                 title="Payment Type Split",
                 color="payment_desc",
                 color_discrete_map={
-                    "Credit Card": COLORS["cyan"],
+                    "Credit Card": COLORS["blue"],
                     "Cash": COLORS["amber"],
                 },
                 hole=0.5,
@@ -773,7 +773,7 @@ with t1:
                 ww, values="trips", names="label",
                 title="Weekday vs Weekend",
                 color="label",
-                color_discrete_map={"Weekday": COLORS["cyan"], "Weekend": COLORS["purple"]},
+                color_discrete_map={"Weekday": COLORS["blue"], "Weekend": COLORS["teal"]},
                 hole=0.5,
             )
             fig.update_traces(textposition="outside", textinfo="percent")
@@ -799,7 +799,7 @@ with t1:
 
     st.markdown("""
         <div class="insight-box">
-            <p><strong style="color:#00d4ff;">Key Insight:</strong>
+            <p><strong style="color:#2563eb;">Key Insight:</strong>
             The pipeline processes <strong>{}</strong> trips with an average fare of
             <strong>{}</strong>. Evening rush hour sees <strong>{}</strong> more
             trips than morning rush. Credit card payments dominate at
@@ -836,9 +836,9 @@ with t2:
             colorscale=[
                 [0, "#0a0a1a"],
                 [0.25, "#1a1a3e"],
-                [0.5, "#00d4ff"],
-                [0.75, "#7c3aed"],
-                [1, "#f59e0b"],
+                [0.5, "#2563eb"],
+                [0.75, "#0891b2"],
+                [1, "#d97706"],
             ],
             hovertemplate="Day: %{x}<br>Hour: %{y}:00<br>Trips: %{z:,.0f}<extra></extra>",
         ))
@@ -896,8 +896,8 @@ with t2:
             st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Daily Trip & Revenue Trend</h3>", unsafe_allow_html=True)
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             if not filtered.empty:
-                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_trips"], mode="lines", name="Trips", line=dict(color=COLORS["cyan"], width=2.5), fill="tozeroy", fillcolor="rgba(0,212,255,0.08)"), secondary_y=False)
-                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_revenue"], mode="lines", name="Revenue", line=dict(color=COLORS["purple"], width=2)), secondary_y=True)
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_trips"], mode="lines", name="Trips", line=dict(color=COLORS["blue"], width=2.5), fill="tozeroy", fillcolor="rgba(37,99,235,0.08)"), secondary_y=False)
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_revenue"], mode="lines", name="Revenue", line=dict(color=COLORS["teal"], width=2)), secondary_y=True)
             fig.update_layout(height=450, hovermode="x unified", legend=dict(orientation="h", y=1.08, x=0.25))
             fig.update_yaxes(title="Trips", secondary_y=False)
             fig.update_yaxes(title="Revenue ($)", secondary_y=True)
@@ -913,10 +913,10 @@ with t2:
 
             fig = go.Figure()
             radar_metrics = [
-                ("trips_norm", "Trips", COLORS["cyan"]),
+                ("trips_norm", "Trips", COLORS["blue"]),
                 ("avg_fare_norm", "Fare", COLORS["amber"]),
                 ("avg_tip_norm", "Tip", COLORS["green"]),
-                ("avg_distance_norm", "Distance", COLORS["purple"]),
+                ("avg_distance_norm", "Distance", COLORS["teal"]),
                 ("avg_duration_norm", "Duration", COLORS["pink"]),
             ]
             for col, name, color in radar_metrics:
@@ -942,7 +942,7 @@ with t2:
             st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Revenue & Tip Trend</h3>", unsafe_allow_html=True)
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             if not filtered.empty:
-                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_revenue"], mode="lines", name="Revenue", line=dict(color=COLORS["green"], width=2.5), fill="tozeroy", fillcolor="rgba(16,185,129,0.08)"), secondary_y=False)
+                fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["total_revenue"], mode="lines", name="Revenue", line=dict(color=COLORS["green"], width=2.5), fill="tozeroy", fillcolor="rgba(5,150,105,0.08)"), secondary_y=False)
                 fig.add_trace(go.Scatter(x=filtered["trip_date"], y=filtered["avg_tip_pct"], mode="lines", name="Tip %", line=dict(color=COLORS["pink"], width=2)), secondary_y=True)
             fig.update_layout(height=450, hovermode="x unified", legend=dict(orientation="h", y=1.08, x=0.25))
             fig.update_yaxes(title="Revenue ($)", secondary_y=False)
@@ -965,7 +965,7 @@ with t2:
             if monthly_hourly is not None and not monthly_hourly.empty:
                 fig = px.line(
                     monthly_hourly, x="pickup_hour", y="trips", color="pickup_month",
-                    color_discrete_map={1: COLORS["cyan"], 2: COLORS["purple"], 3: COLORS["amber"]},
+                    color_discrete_map={1: COLORS["blue"], 2: COLORS["teal"], 3: COLORS["amber"]},
                     labels={"pickup_hour": "Hour", "trips": "Trips", "pickup_month": "Month"},
                     line_shape="spline",
                 )
@@ -990,7 +990,7 @@ with t2:
             st.markdown("<h3 style='font-weight:600; margin-bottom:0.5rem;'>Monthly Metric Comparison</h3>", unsafe_allow_html=True)
             fig = go.Figure()
             month_metrics = ["avg_fare", "avg_distance", "avg_tip", "avg_duration"]
-            colors_m = [COLORS["cyan"], COLORS["amber"], COLORS["green"], COLORS["pink"]]
+            colors_m = [COLORS["blue"], COLORS["amber"], COLORS["green"], COLORS["pink"]]
             names_m = ["Avg Fare ($)", "Avg Distance (mi)", "Avg Tip ($)", "Avg Duration (min)"]
 
             for i, (m, c, n) in enumerate(zip(month_metrics, colors_m, names_m)):
@@ -1025,7 +1025,7 @@ with t2:
 
     st.markdown("""
         <div class="insight-box">
-            <p><strong style="color:#00d4ff;">Key Insights:</strong>
+            <p><strong style="color:#2563eb;">Key Insights:</strong>
             Trip volume peaks at <strong>6 PM</strong> on weekdays. Weekends show a
             flatter distribution with higher late-night activity.
             <strong>Wednesday</strong> is the busiest day; <strong>Sunday</strong>
@@ -1060,7 +1060,7 @@ with t3:
                 y="LocationID", x="trips",
                 orientation="h",
                 color="trips",
-                color_continuous_scale=[[0, "#1a1a3e"], [0.5, "#00d4ff"], [1, "#7c3aed"]],
+                color_continuous_scale=[[0, "#1a1a3e"], [0.5, "#2563eb"], [1, "#0891b2"]],
                 labels={"LocationID": "Zone ID", "trips": "Pickup Trips"},
                 text_auto=",.0f",
             )
@@ -1074,7 +1074,7 @@ with t3:
                 y="LocationID", x="trips",
                 orientation="h",
                 color="trips",
-                color_continuous_scale=[[0, "#1a1a3e"], [0.5, "#7c3aed"], [1, "#f59e0b"]],
+                color_continuous_scale=[[0, "#1a1a3e"], [0.5, "#0891b2"], [1, "#d97706"]],
                 labels={"LocationID": "Zone ID", "trips": "Dropoff Trips"},
                 text_auto=",.0f",
             )
@@ -1095,13 +1095,13 @@ with t3:
                 thickness=20,
                 line=dict(color="rgba(255,255,255,0.1)", width=0.5),
                 label=[f"PU {n}" for n in all_nodes],
-                color=[COLORS["cyan"] for n in all_nodes],
+                color=[COLORS["blue"] for n in all_nodes],
             ),
             link=dict(
                 source=[node_map[r["PULocationID"]] for _, r in top_routes.iterrows()],
                 target=[node_map[r["DOLocationID"]] for _, r in top_routes.iterrows()],
                 value=top_routes["trips"].tolist(),
-                color=[COLORS["purple"] for _ in range(len(top_routes))],
+                color=[COLORS["teal"] for _ in range(len(top_routes))],
                 hovertemplate="%{source.label} → %{target.label}<br>Trips: %{value:,.0f}<extra></extra>",
             ),
         )])
@@ -1123,7 +1123,7 @@ with t3:
                 })
                 fig = px.area(
                     rush_pivot, x="trip_date", y="trips", color="period",
-                    color_discrete_map={"Morning (6-10)": COLORS["amber"], "Evening (16-20)": COLORS["purple"]},
+                    color_discrete_map={"Morning (6-10)": COLORS["amber"], "Evening (16-20)": COLORS["teal"]},
                 )
                 fig.update_layout(height=350, legend=dict(orientation="h", y=1.08, x=0.2))
                 st.plotly_chart(apply_theme(fig), use_container_width=True)
@@ -1151,7 +1151,7 @@ with t3:
 
     st.markdown("""
         <div class="insight-box">
-            <p><strong style="color:#00d4ff;">Key Insight:</strong>
+            <p><strong style="color:#2563eb;">Key Insight:</strong>
             The busiest routes are concentrated in Manhattan. Taxi zones
             <strong>161</strong> (JFK Airport) and <strong>237</strong>
             (Upper East Side) are among the top pickup/dropoff locations,
@@ -1168,9 +1168,9 @@ with t4:
         <div style="margin-bottom:0.5rem;">
             <h3 style="font-weight:600; margin:0;">Fare Predictor</h3>
             <p style="color:#64748b; margin:0;">
-                GradientBoosting Regressor · MAE = <strong style="color:#00d4ff;">$0.94</strong>
-                · RMSE = <strong style="color:#7c3aed;">$3.26</strong>
-                · R² = <strong style="color:#f59e0b;">0.969</strong>
+                GradientBoosting Regressor · MAE = <strong style="color:#2563eb;">$0.94</strong>
+                · RMSE = <strong style="color:#0891b2;">$3.26</strong>
+                · R² = <strong style="color:#d97706;">0.969</strong>
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -1232,12 +1232,12 @@ with t4:
                 prediction = round(float(model.predict(input_data)[0]), 2)
 
                 st.markdown(f"""
-                    <div style="background:linear-gradient(135deg, rgba(0,212,255,0.1), rgba(124,58,237,0.1));
-                              border:1px solid rgba(0,212,255,0.2); border-radius:16px;
+                    <div style="background:linear-gradient(135deg, rgba(37,99,235,0.1), rgba(8,145,178,0.1));
+                              border:1px solid rgba(37,99,235,0.2); border-radius:16px;
                               padding:1.5rem; text-align:center;">
                         <p style="color:#94a3b8; font-size:0.85rem; margin:0;">Predicted Fare</p>
                         <p style="font-size:3.5rem; font-weight:800; margin:0;
-                                  background:linear-gradient(135deg, #00d4ff, #7c3aed);
+                                  background:linear-gradient(135deg, #2563eb, #0891b2);
                                   -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                             ${prediction:.2f}
                         </p>
@@ -1338,7 +1338,7 @@ with t5:
         for num, title, desc in pipeline_steps:
             st.markdown(f"""
                 <div style="display:flex; gap:0.75rem; padding:0.5rem 0; border-bottom:1px solid rgba(255,255,255,0.04);">
-                    <div style="font-size:0.85rem; font-weight:700; width:2rem; color:#00d4ff;">{num}</div>
+                    <div style="font-size:0.85rem; font-weight:700; width:2rem; color:#2563eb;">{num}</div>
                     <div>
                         <p style="font-weight:600; margin:0; color:#e2e8f0;">{title}</p>
                         <p style="color:#64748b; font-size:0.85rem; margin:0;">{desc}</p>
@@ -1420,9 +1420,9 @@ Raw Parquet (NYC TLC)
             <p style="color:#64748b;">
                 Built by <strong style="color:#e2e8f0;">Brayan Hawald Ngowi</strong>
                 ·
-                <a href="https://github.com/masterbry" style="color:#00d4ff; text-decoration:none;">GitHub</a>
+                <a href="https://github.com/masterbry" style="color:#2563eb; text-decoration:none;">GitHub</a>
                 ·
-                <a href="https://master-bry.vercel.app" style="color:#7c3aed; text-decoration:none;">Portfolio</a>
+                <a href="https://master-bry.vercel.app" style="color:#0891b2; text-decoration:none;">Portfolio</a>
             </p>
             <p style="color:#475569; font-size:0.8rem;">
                 © 2023 · NYC Taxi Data Pipeline · All rights reserved
