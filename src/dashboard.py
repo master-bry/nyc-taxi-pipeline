@@ -21,7 +21,6 @@ import os
 # ──────────────────────────────────────────────
 st.set_page_config(
     page_title="NYC Taxi Analytics",
-    page_icon="🚕",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -33,7 +32,11 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-    * { font-family: 'Inter', sans-serif; }
+    * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
 
     .stApp {
         background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0f0f1a 100%);
@@ -46,7 +49,12 @@ st.markdown("""
 
     h1, h2, h3, h4, h5, h6, p, span, div, label {
         color: #e2e8f0 !important;
+        letter-spacing: -0.01em;
     }
+
+    h1 { font-weight: 700; letter-spacing: -0.02em; }
+    h2 { font-weight: 600; letter-spacing: -0.015em; }
+    h3 { font-weight: 600; letter-spacing: -0.01em; }
 
     .stTabs [data-baseweb="tab-list"] {
         gap: 0.75rem;
@@ -61,9 +69,10 @@ st.markdown("""
         border-radius: 12px !important;
         padding: 0.6rem 1.5rem !important;
         font-weight: 500;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         color: #94a3b8 !important;
         transition: all 0.3s ease;
+        letter-spacing: 0.01em;
     }
 
     .stTabs [aria-selected="true"] {
@@ -92,8 +101,8 @@ st.markdown("""
         font-size: 0.75rem !important;
         font-weight: 600 !important;
         color: #94a3b8 !important;
-        text-transform: none !important;
-        letter-spacing: 0 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.05em !important;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -127,10 +136,11 @@ st.markdown("""
         border-radius: 12px !important;
         padding: 0.75rem 2rem !important;
         font-weight: 600 !important;
-        font-size: 1rem !important;
+        font-size: 0.95rem !important;
         color: #fff !important;
         transition: all 0.3s ease !important;
         box-shadow: 0 4px 24px rgba(0,212,255,0.25) !important;
+        letter-spacing: 0.01em;
     }
 
     .stButton button[kind="primary"]:hover {
@@ -173,7 +183,7 @@ st.markdown("""
         margin: 1rem 0;
     }
 
-    .insight-box p { margin: 0; color: #e2e8f0 !important; font-size: 0.95rem; }
+    .insight-box p { margin: 0; color: #e2e8f0 !important; font-size: 0.9rem; }
 
     .stSidebar {
         background: rgba(15,15,26,0.95) !important;
@@ -487,12 +497,11 @@ with st.spinner("Loading pipeline data..."):
 with st.sidebar:
     st.markdown("""
         <div style="text-align:center; padding:1rem 0;">
-            <div style="font-size:3rem; margin-bottom:0.5rem;">🚕</div>
-            <h3 style="margin:0; font-weight:700; background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            <h3 style="margin:0; font-weight:700; font-size:1.5rem; background: linear-gradient(135deg, #00d4ff, #7c3aed);
                        -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                 NYC TAXI
             </h3>
-            <p style="color:#64748b; font-size:0.85rem; margin:0;">Analytics Dashboard</p>
+            <p style="color:#64748b; font-size:0.85rem; margin:0.25rem 0 0 0; letter-spacing:0.02em;">Analytics Dashboard</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -686,7 +695,7 @@ with t1:
     row2 = st.columns(4)
 
     rush_colors = {"morning_rush": COLORS["amber"], "evening_rush": COLORS["purple"], "off_peak": COLORS["cyan"]}
-    rush_labels = {"morning_rush": "🌅 Morning Rush", "evening_rush": "🌆 Evening Rush", "off_peak": "🌙 Off-Peak"}
+    rush_labels = {"morning_rush": "Morning Rush", "evening_rush": "Evening Rush", "off_peak": "Off-Peak"}
 
     has_rush = rush_hour is not None and not rush_hour.empty
     has_payment = payment_dist is not None and not payment_dist.empty
@@ -1132,7 +1141,7 @@ with t3:
             <div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:1rem; margin-top:1rem;
                         border:1px solid rgba(255,255,255,0.06);">
                 <p style="color:#64748b; margin:0; font-size:0.9rem;">
-                    📍 <strong>Location-specific analysis</strong> (top pickup/dropoff zones, route Sankey diagram)
+                    <strong>Location-specific analysis</strong> (top pickup/dropoff zones, route Sankey diagram)
                     requires the full Parquet dataset. Deploy the complete pipeline to enable spatial analytics.
                 </p>
             </div>
@@ -1157,7 +1166,7 @@ with t3:
 with t4:
     st.markdown("""
         <div style="margin-bottom:0.5rem;">
-            <h3 style="font-weight:600; margin:0;">🚕 Fare Predictor</h3>
+            <h3 style="font-weight:600; margin:0;">Fare Predictor</h3>
             <p style="color:#64748b; margin:0;">
                 GradientBoosting Regressor · MAE = <strong style="color:#00d4ff;">$0.94</strong>
                 · RMSE = <strong style="color:#7c3aed;">$3.26</strong>
@@ -1176,15 +1185,15 @@ with t4:
         passenger_count = st.selectbox("Passengers", [1, 2, 3, 4, 5, 6])
         payment_type = st.selectbox(
             "Payment", [1, 2],
-            format_func=lambda x: "💳 Credit Card" if x == 1 else "💵 Cash",
+            format_func=lambda x: "Credit Card" if x == 1 else "Cash",
         )
         time_of_day = st.selectbox(
             "Time of Day",
             ["morning_rush", "evening_rush", "off_peak"],
             format_func=lambda x: {
-                "morning_rush": "🌅 Morning Rush (6–10)",
-                "evening_rush": "🌆 Evening Rush (16–20)",
-                "off_peak": "🌙 Off-Peak",
+                "morning_rush": "Morning Rush (6–10)",
+                "evening_rush": "Evening Rush (16–20)",
+                "off_peak": "Off-Peak",
             }[x],
         )
 
@@ -1211,7 +1220,7 @@ with t4:
 
     with pred_col:
         if model_ready:
-            predict_btn = st.button("🚕 Predict Fare", type="primary", use_container_width=True)
+            predict_btn = st.button("Predict Fare", type="primary", use_container_width=True)
 
             if predict_btn:
                 time_enc = le.transform([time_of_day])[0]
@@ -1241,7 +1250,7 @@ with t4:
                 st.markdown("""
                     <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
                               border-radius:16px; padding:2rem; text-align:center;">
-                        <p style="color:#64748b; font-size:2rem; margin:0;">🚕</p>
+                        <p style="color:#64748b; font-size:1.5rem; font-weight:300; margin:0;">—</p>
                         <p style="color:#64748b; margin:0;">Adjust parameters and click Predict</p>
                     </div>
                 """, unsafe_allow_html=True)
@@ -1258,7 +1267,7 @@ with t4:
             st.markdown("""
                 <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
                           border-radius:16px; padding:2rem; text-align:center;">
-                    <p style="color:#64748b; font-size:3rem; margin:0;">🧠</p>
+                    <p style="color:#64748b; font-size:3rem; font-weight:200; margin:0;">—</p>
                     <p style="color:#94a3b8; font-size:1.1rem; margin:0.5rem 0 0 0;">Model not loaded</p>
                     <p style="color:#64748b; font-size:0.85rem; margin-top:0.5rem;">
                         The ML model file (best_model.pkl) is not available in this environment.
@@ -1316,20 +1325,20 @@ with t5:
         """, unsafe_allow_html=True)
 
         pipeline_steps = [
-            ("📥", "Ingestion", "Download raw Parquet files from NYC TLC S3 bucket"),
-            ("✅", "Quality Check", "Validate completeness, validity, and accuracy"),
-            ("🧹", "Cleaning", "Remove anomalies, engineer time/speed/tip features"),
-            ("🗄️", "DuckDB Load", "Load 8.8M cleaned trips into OLAP database"),
-            ("🏗️", "dbt Transforms", "Stage data → daily summary & hourly pattern marts"),
-            ("🤖", "ML Training", "Train & compare 3 models, track with MLflow"),
-            ("⚡", "FastAPI Serving", "Deploy best model as /predict REST endpoint"),
-            ("📊", "Dashboard", "This interactive Streamlit + Plotly dashboard"),
+            ("01", "Ingestion", "Download raw Parquet files from NYC TLC S3 bucket"),
+            ("02", "Quality Check", "Validate completeness, validity, and accuracy"),
+            ("03", "Cleaning", "Remove anomalies, engineer time/speed/tip features"),
+            ("04", "DuckDB Load", "Load 8.8M cleaned trips into OLAP database"),
+            ("05", "dbt Transforms", "Stage data → daily summary & hourly pattern marts"),
+            ("06", "ML Training", "Train & compare 3 models, track with MLflow"),
+            ("07", "FastAPI Serving", "Deploy best model as /predict REST endpoint"),
+            ("08", "Dashboard", "This interactive Streamlit + Plotly dashboard"),
         ]
 
-        for emoji, title, desc in pipeline_steps:
+        for num, title, desc in pipeline_steps:
             st.markdown(f"""
                 <div style="display:flex; gap:0.75rem; padding:0.5rem 0; border-bottom:1px solid rgba(255,255,255,0.04);">
-                    <div style="font-size:1.5rem; width:2rem;">{emoji}</div>
+                    <div style="font-size:0.85rem; font-weight:700; width:2rem; color:#00d4ff;">{num}</div>
                     <div>
                         <p style="font-weight:600; margin:0; color:#e2e8f0;">{title}</p>
                         <p style="color:#64748b; font-size:0.85rem; margin:0;">{desc}</p>
@@ -1347,21 +1356,20 @@ with t5:
         """, unsafe_allow_html=True)
 
         techs = [
-            ("🐍", "Python 3.13", "Core language"),
-            ("🦆", "DuckDB", "Embedded OLAP engine"),
-            ("🏗️", "dbt", "Data transformation"),
-            ("🤖", "scikit-learn", "ML models"),
-            ("📊", "MLflow", "Experiment tracking"),
-            ("⚡", "FastAPI + Uvicorn", "REST API"),
-            ("📈", "Streamlit", "Dashboard framework"),
-            ("📉", "Plotly", "Interactive charts"),
+            ("Python 3.13", "Core language"),
+            ("DuckDB", "Embedded OLAP engine"),
+            ("dbt", "Data transformation"),
+            ("scikit-learn", "ML models"),
+            ("MLflow", "Experiment tracking"),
+            ("FastAPI + Uvicorn", "REST API"),
+            ("Streamlit", "Dashboard framework"),
+            ("Plotly", "Interactive charts"),
         ]
-        for emoji, name, desc in techs:
+        for name, desc in techs:
             st.markdown(f"""
                 <div style="display:flex; gap:0.5rem; padding:0.35rem 0;">
-                    <span>{emoji}</span>
                     <div>
-                        <strong style="font-size:0.9rem;">{name}</strong>
+                        <strong style="font-size:0.9rem; color:#e2e8f0;">{name}</strong>
                         <span style="color:#64748b; font-size:0.85rem;"> — {desc}</span>
                     </div>
                 </div>
