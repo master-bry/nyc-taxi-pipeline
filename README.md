@@ -4,8 +4,7 @@ End-to-end data engineering and machine learning project built on 8.7 million NY
 
 ## Live Demo
 
-- Dashboard: [Deploy on Streamlit Cloud — see setup below]
-- API Docs: `http://localhost:8000/docs` (FastAPI Swagger UI)
+- Dashboard: (https://nyc-taxi2026.streamlit.app)
 
 ---
 
