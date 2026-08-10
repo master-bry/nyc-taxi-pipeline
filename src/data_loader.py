@@ -5,9 +5,12 @@ Provides functions to connect to DuckDB and retrieve analytics data.
 """
 
 from typing import Optional
+import os
+
 import duckdb
 import pandas as pd
-import os
+
+from src.config import get_settings
 
 
 def get_connection(read_only: bool = True) -> duckdb.DuckDBPyConnection:
@@ -25,10 +28,15 @@ def get_connection(read_only: bool = True) -> duckdb.DuckDBPyConnection:
     Raises:
         FileNotFoundError: If DuckDB database cannot be accessed
     """
-    db_path = "data/taxi.duckdb"
+    db_path = get_settings().database.duckdb_path
     if os.path.exists(db_path):
         return duckdb.connect(db_path, read_only=read_only)
     return duckdb.connect()
+
+
+def _processed_parquet() -> str:
+    """Return the path to the cleaned trips parquet file."""
+    return os.path.join(get_settings().data.processed_data_path, "trips_cleaned.parquet")
 
 
 def get_daily_summary() -> pd.DataFrame:
@@ -49,10 +57,9 @@ def get_daily_summary() -> pd.DataFrame:
         Exception: If query execution fails
     """
     con = get_connection()
-    parquet_path = "data/processed/trips_cleaned.parquet"
-    
+    parquet_path = _processed_parquet()
     tables = con.execute("SHOW TABLES").df()["name"].tolist()
-    
+
     if "mart_daily_summary" not in tables:
         return con.execute(f"""
             SELECT
@@ -64,7 +71,7 @@ def get_daily_summary() -> pd.DataFrame:
             FROM read_parquet('{parquet_path}')
             GROUP BY 1 ORDER BY 1
         """).df()
-    
+
     return con.execute("SELECT * FROM mart_daily_summary ORDER BY trip_date").df()
 
 
@@ -86,10 +93,9 @@ def get_hourly_patterns() -> pd.DataFrame:
         Exception: If query execution fails
     """
     con = get_connection()
-    parquet_path = "data/processed/trips_cleaned.parquet"
-    
+    parquet_path = _processed_parquet()
     tables = con.execute("SHOW TABLES").df()["name"].tolist()
-    
+
     if "mart_hourly_patterns" not in tables:
         return con.execute(f"""
             SELECT
@@ -101,5 +107,5 @@ def get_hourly_patterns() -> pd.DataFrame:
             FROM read_parquet('{parquet_path}')
             GROUP BY 1, 2 ORDER BY 1
         """).df()
-    
+
     return con.execute("SELECT * FROM mart_hourly_patterns ORDER BY pickup_hour").df()
