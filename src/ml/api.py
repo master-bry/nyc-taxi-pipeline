@@ -42,15 +42,15 @@ class TripInput(BaseModel):
     """Input schema for fare prediction request."""
 
     trip_distance: float = Field(
-        ..., 
+        ...,
         example=2.5,
         description="Trip distance in miles",
         gt=0
     )
     passenger_count: int = Field(
-        ..., 
+        ...,
         example=1,
-        ge=1, 
+        ge=1,
         le=6,
         description="Number of passengers"
     )

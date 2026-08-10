@@ -612,7 +612,7 @@ t1, t2, t3, t4, t5 = st.tabs([
 # ═══════════════════════════════════════════════
 # TAB 1: OVERVIEW
 # ═══════════════════════════════════════════════
- 
+
 with t1:
     row1 = st.columns([3, 2])
 
@@ -642,7 +642,6 @@ with t1:
                     hovertemplate="%{x|%b %d}<br>MA: %{y:,.0f}<extra></extra>",
                 ),
                 secondary_y=False,
-                
             )
         fig.add_trace(
             go.Scatter(
