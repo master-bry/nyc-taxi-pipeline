@@ -4,7 +4,7 @@ import os
 con = duckdb.connect()
 os.makedirs("data/processed", exist_ok=True)
 
-print(" Starting cleaning pipeline...")
+print("Starting cleaning pipeline...")
 
 # ============================================================
 # HATUA 1: Angalia total kabla ya cleaning
@@ -12,7 +12,7 @@ print(" Starting cleaning pipeline...")
 total_before = con.execute("""
     SELECT COUNT(*) FROM 'data/raw/*.parquet'
 """).fetchone()[0]
-print(f"\n Rows BEFORE cleaning: {total_before:,}")
+print(f"\nRows BEFORE cleaning: {total_before:,}")
 
 # ============================================================
 # HATUA 2: Apply cleaning rules + feature engineering
