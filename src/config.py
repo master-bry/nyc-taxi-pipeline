@@ -5,19 +5,19 @@ Supports environment-based settings (dev/prod) with Pydantic validation.
 Load settings via: from src.config import get_settings
 """
 
-import os
 from typing import Literal
-from pydantic import Field, BaseSettings
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DatabaseSettings(BaseSettings):
     """Database connection configuration."""
 
+    model_config = SettingsConfigDict(env_prefix="DB_")
+
     duckdb_path: str = Field(default="data/taxi.duckdb", description="Path to DuckDB database")
     read_only: bool = Field(default=True, description="Open database in read-only mode")
-
-    class Config:
-        env_prefix = "DB_"
 
 
 class MLSettings(BaseSettings):
@@ -33,8 +33,7 @@ class MLSettings(BaseSettings):
     )
     mlflow_experiment: str = Field(default="nyc_taxi", description="MLflow experiment name")
 
-    class Config:
-        env_prefix = "ML_"
+    model_config = SettingsConfigDict(env_prefix="ML_")
 
 
 class APISettings(BaseSettings):
@@ -48,8 +47,7 @@ class APISettings(BaseSettings):
         default="INFO", description="Log level"
     )
 
-    class Config:
-        env_prefix = "API_"
+    model_config = SettingsConfigDict(env_prefix="API_")
 
 
 class DashboardSettings(BaseSettings):
@@ -60,8 +58,7 @@ class DashboardSettings(BaseSettings):
     layout: Literal["centered", "wide"] = Field(default="wide", description="Page layout")
     cache_ttl: int = Field(default=3600, description="Cache time-to-live in seconds")
 
-    class Config:
-        env_prefix = "DASHBOARD_"
+    model_config = SettingsConfigDict(env_prefix="DASHBOARD_")
 
 
 class DataSettings(BaseSettings):
@@ -72,8 +69,7 @@ class DataSettings(BaseSettings):
     exports_path: str = Field(default="exports", description="Exports directory")
     logs_path: str = Field(default="logs", description="Logs directory")
 
-    class Config:
-        env_prefix = "DATA_"
+    model_config = SettingsConfigDict(env_prefix="DATA_")
 
 
 class Settings(BaseSettings):
@@ -88,9 +84,11 @@ class Settings(BaseSettings):
     dashboard: DashboardSettings = Field(default_factory=DashboardSettings)
     data: DataSettings = Field(default_factory=DataSettings)
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 def get_settings() -> Settings:
