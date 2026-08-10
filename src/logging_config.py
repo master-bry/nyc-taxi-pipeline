@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+DEFAULT_FMT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+
 
 class JSONFormatter(logging.Formatter):
     """Custom JSON formatter for structured logging."""
@@ -44,7 +46,7 @@ def setup_logging(
     level: str = "INFO",
     log_dir: Optional[str] = None,
     use_json: bool = False,
-) -> None:
+) -> logging.Logger:
     """
     Configure logging for the application.
 
@@ -53,6 +55,9 @@ def setup_logging(
         log_dir: Directory for log files (optional)
         use_json: Use JSON formatter for structured logging
 
+    Returns:
+        logging.Logger: The configured root logger
+
     Example:
         setup_logging(level="DEBUG", log_dir="logs", use_json=True)
     """
@@ -60,9 +65,8 @@ def setup_logging(
     if log_dir_path:
         log_dir_path.mkdir(parents=True, exist_ok=True)
 
-    # Determine formatter
-    formatter_class = JSONFormatter if use_json else logging.Formatter
-    fmt_string = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+    def build_formatter(use_json: bool) -> logging.Formatter:
+        return JSONFormatter() if use_json else logging.Formatter(DEFAULT_FMT)
 
     # Remove existing handlers
     root_logger = logging.getLogger()
@@ -72,23 +76,19 @@ def setup_logging(
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
-    console_formatter = (
-        formatter_class() if use_json else logging.Formatter(fmt_string)
-    )
-    console_handler.setFormatter(console_formatter)
+    console_handler.setFormatter(build_formatter(use_json))
     root_logger.addHandler(console_handler)
 
     # File handler (if log_dir provided)
     if log_dir_path:
         file_handler = logging.FileHandler(log_dir_path / "app.log")
         file_handler.setLevel(level)
-        file_formatter = (
-            formatter_class() if use_json else logging.Formatter(fmt_string)
-        )
-        file_handler.setFormatter(file_formatter)
+        file_handler.setFormatter(build_formatter(use_json))
         root_logger.addHandler(file_handler)
 
     root_logger.setLevel(level)
+
+    return root_logger
 
 
 def get_logger(name: str, extra_data: Optional[dict] = None) -> logging.LoggerAdapter:
@@ -108,9 +108,7 @@ def get_logger(name: str, extra_data: Optional[dict] = None) -> logging.LoggerAd
     """
     logger = logging.getLogger(name)
 
-    if extra_data:
-        return logging.LoggerAdapter(logger, {"extra_data": extra_data})
-    return logger  # type: ignore
+    return logging.LoggerAdapter(logger, {"extra_data": extra_data} if extra_data else {})
 
 
 # Default setup
