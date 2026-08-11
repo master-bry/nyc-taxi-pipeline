@@ -102,7 +102,6 @@ print("\n" + "=" * 72)
 print("SECTION 4: NUMERIC SUMMARY STATISTICS")
 print("=" * 72)
 
-
 stats = con.execute("""
     SELECT
         'fare_amount'                                                   AS metric,
