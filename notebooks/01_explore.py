@@ -180,6 +180,7 @@ stats = con.execute("""
 """).df()
 print(stats.to_string(index=False))
 
+
 # ──────────────────────────────────────────────
 # 5. DISTRIBUTIONS — CATEGORICAL & DISCRETE
 # ──────────────────────────────────────────────
